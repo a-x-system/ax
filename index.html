@@ -15,14 +15,21 @@
     <div class="header">
       <div class="header-left">
         <h1>AX</h1>
-        <div class="user-mini-info" id="headerUserInfo" style="display:none">
-          <span class="user-name" id="headerName">...</span>
-          <span class="user-role badge" id="headerRole">...</span>
-        </div>
       </div>
       
       <div class="actions">
-        <button class="btn btn-sm" id="logoutBtn">Выйти</button>
+        <!-- Кнопка профиля -->
+        <div class="profile-menu-container">
+          <button class="btn btn-sm" id="profileBtn">
+            <span id="headerLogin">...</span> 
+            <span id="headerRole" class="badge">...</span>
+          </button>
+          
+          <!-- Выпадающее меню -->
+          <div class="dropdown-menu" id="profileMenu">
+            <button id="logoutBtn" class="menu-item">Выйти</button>
+          </div>
+        </div>
       </div>
     </div>
 
