@@ -465,6 +465,20 @@
   </div>
 
   <script>
+    (function() {
+      try {
+        var hasUser = !!localStorage.getItem('ax_user');
+        var lv = document.getElementById('login-view');
+        var av = document.getElementById('app-view');
+        if (lv && av) {
+          lv.style.display = hasUser ? 'none' : 'flex';
+          av.style.display = hasUser ? 'block' : 'none';
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <script>
     // --- 1. SUPABASE CONFIG ---
     const SUPABASE_URL = 'https://uuhsjusmhmmjceujzoiw.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1aHNqdXNtaG1tamNldWp6b2l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MDU0MTUsImV4cCI6MjA4MTE4MTQxNX0.zaOtLcZGoNV77AiLrbODv3gIamlHWh8QwbBdWeOfJLw';
