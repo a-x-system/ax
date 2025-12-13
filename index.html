@@ -806,22 +806,37 @@
             if (shiftId) dayCounts[d]++; // Count workers for this day
             else totalDaysOff++;
 
-            const select = document.createElement('select');
-            select.className = `cell-input ${shiftId ? 'cell-work' : 'cell-b'}`;
-            select.dataset.userId = user.id;
-            select.dataset.date = dateStr;
-            
-            // Options: B (null) + Shifts
-            const optB = document.createElement('option'); optB.value = ''; optB.text = 'B'; 
-            if (!shiftId) optB.selected = true;
-            select.appendChild(optB);
-            
-            this.shiftTypes.forEach(st => {
-              const opt = document.createElement('option');
-              opt.value = st.id; opt.textContent = st.id; 
-              if (String(st.id) === String(shiftId)) opt.selected = true;
-              select.appendChild(opt);
-            });
+            // Check permissions
+            const canEdit = ['director', 'senior_seller'].includes(currentUser.role);
+
+            if (canEdit) {
+                const select = document.createElement('select');
+                select.className = `cell-input ${shiftId ? 'cell-work' : 'cell-b'}`;
+                select.dataset.userId = user.id;
+                select.dataset.date = dateStr;
+                
+                // Options: B (null) + Shifts
+                const optB = document.createElement('option'); optB.value = ''; optB.text = 'B'; 
+                if (!shiftId) optB.selected = true;
+                select.appendChild(optB);
+                
+                this.shiftTypes.forEach(st => {
+                  const opt = document.createElement('option');
+                  opt.value = st.id; opt.textContent = st.id; 
+                  if (String(st.id) === String(shiftId)) opt.selected = true;
+                  select.appendChild(opt);
+                });
+                
+                select.onchange = (e) => this.handleShiftChange(e.target);
+                td.appendChild(select);
+            } else {
+                // Read-only view for sellers
+                const div = document.createElement('div');
+                div.className = `cell-input ${shiftId ? 'cell-work' : 'cell-b'}`;
+                div.style.cursor = 'default';
+                div.textContent = shiftId || 'B';
+                td.appendChild(div);
+            }
             
             // Calculate Hours
             if (shiftId) {
@@ -1003,32 +1018,36 @@
 
         // Change Photo
         const avatarInput = document.getElementById('avatarUploadInput');
-        document.getElementById('changePhotoBtn').onclick = (e) => {
-          e.stopPropagation();
-          avatarInput.click();
-          pMenu.style.display = 'none';
-        };
-
-        avatarInput.onchange = async (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-          try {
-            const btn = document.getElementById('changePhotoBtn');
-            btn.textContent = 'Загрузка...';
-            const url = await uploadFile('photos', file);
-            const { error } = await supabase.from('employees').update({ photo_url: url }).eq('id', currentUser.id);
-            if (error) throw error;
-            currentUser.photo_url = url;
-            localStorage.setItem('ax_user', JSON.stringify(currentUser));
-            document.getElementById('headerAvatar').src = url;
-            alert('Фото обновлено!');
-          } catch (err) {
-            alert('Ошибка: ' + err.message);
-          } finally {
-            e.target.value = '';
-            document.getElementById('changePhotoBtn').innerHTML = '<span>📸</span> Сменить фото';
+        if (avatarInput) {
+          const changePhotoBtn = document.getElementById('changePhotoBtn');
+          if (changePhotoBtn) {
+             changePhotoBtn.onclick = (e) => {
+               e.stopPropagation();
+               avatarInput.click();
+               pMenu.style.display = 'none';
+             };
           }
-        };
+
+          avatarInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+              if (changePhotoBtn) changePhotoBtn.textContent = 'Загрузка...';
+              const url = await uploadFile('photos', file);
+              const { error } = await supabase.from('employees').update({ photo_url: url }).eq('id', currentUser.id);
+              if (error) throw error;
+              currentUser.photo_url = url;
+              localStorage.setItem('ax_user', JSON.stringify(currentUser));
+              document.getElementById('headerAvatar').src = url;
+              alert('Фото обновлено!');
+            } catch (err) {
+              alert('Ошибка: ' + err.message);
+            } finally {
+              e.target.value = '';
+              if (changePhotoBtn) changePhotoBtn.innerHTML = '<span>📸</span> Сменить фото';
+            }
+          };
+        }
 
         // Change Password
         document.getElementById('changePassBtn').onclick = (e) => {
@@ -1064,14 +1083,16 @@
 
         // Role Based Access
         const isAdmin = ['director', 'senior_seller'].includes(currentUser.role);
+        
+        // 1. Admin Tab (Employees) - Restricted
         if (isAdmin) {
           document.getElementById('adminTab').style.display = 'block';
           loadUsersTable();
-          const scheduleManager = new ScheduleManager('schedule-manager');
-          await scheduleManager.init();
-        } else {
-          document.getElementById('viewTeamSched').style.display = 'none';
         }
+
+        // 2. Team Schedule - Init for Everyone (Read-only for sellers)
+        const scheduleManager = new ScheduleManager('schedule-manager');
+        await scheduleManager.init();
 
         // Init Components
         new Calendar('calendar-wrapper');
