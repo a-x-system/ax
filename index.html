@@ -1,153 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>РУКОВОДСТВО</title>
-  <!-- Favicon (заглушка, можно заменить на свою ссылку) -->
-  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" type="image/png">
-  
+  <title>AX — Главная</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../css/main.css">
-  <link rel="stylesheet" href="../css/calendar.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/calendar.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>AX</h1>
+      <div class="header-left">
+        <h1>AX</h1>
+        <div class="user-mini-info" id="headerUserInfo" style="display:none">
+          <span class="user-name" id="headerName">...</span>
+          <span class="user-role badge" id="headerRole">...</span>
+        </div>
+      </div>
+      
       <div class="actions">
-        <button class="btn btn-sm" id="logoutBtn" style="background: rgba(255,0,0,0.1); color: red;">Выйти</button>
+        <button class="btn btn-sm" id="logoutBtn">Выйти</button>
       </div>
     </div>
 
     <div class="tabs">
-      <button class="tab active" data-tab="profile">Профиль</button>
-      <button class="tab" data-tab="schedule">График</button>
+      <button class="tab active" data-tab="schedule">График</button>
       <button class="tab" data-tab="operations">Операции</button>
       <button class="tab" data-tab="1s">1С</button>
       <button class="tab" data-tab="merch">Мерч</button>
-      <button class="tab" data-tab="admin" id="adminTab" style="display:none">Админка</button>
+      <button class="tab" data-tab="admin" id="adminTab" style="display:none">Сотрудники</button>
     </div>
 
-    <!-- Вкладка ПРОФИЛЬ -->
-    <div class="tab-content active" id="profile">
-      <div class="card profile-card">
-        <div class="profile-header">
-           <div class="avatar-circle" id="userAvatar">U</div>
-           <div>
-             <h2 id="userName">Загрузка...</h2>
-             <span class="badge" id="userRole">...</span>
-           </div>
-        </div>
-        <div class="grid stats-grid">
-          <div class="stat">
-            <div class="stat-value" id="userHours">0</div>
-            <div class="stat-label">Часов в мес</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="userShifts">0</div>
-            <div class="stat-label">Смен</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Вкладка ГРАФИК -->
-    <div class="tab-content" id="schedule">
+    <!-- Вкладка ГРАФИК (теперь первая) -->
+    <div class="tab-content active" id="schedule">
       <div class="schedule-switch">
         <button class="btn btn-sm active" id="viewMySched">Мой</button>
         <button class="btn btn-sm" id="viewTeamSched">Общий</button>
       </div>
       
-      <!-- Мой график -->
       <div id="myScheduleView">
         <div id="calendar-wrapper"></div>
       </div>
 
-      <!-- Общий график (скрыт по умолчанию) -->
       <div id="teamScheduleView" style="display:none;">
         <div id="schedule-manager"></div>
       </div>
     </div>
-
-    <!-- Вкладка ОПЕРАЦИИ (Видео и Инструкции) -->
-    <div class="tab-content" id="operations">
-      <div class="card">
-        <div class="header">
-           <h3>Видео-инструкции</h3>
-           <!-- Кнопка загрузки видео (пока скрыта, логику добавим) -->
-           <!-- <button class="btn btn-sm">+ Видео</button> -->
-        </div>
-        <div class="grid" id="videoGrid">
-          <div class="loader">Загрузка видео...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Вкладка 1С -->
-    <div class="tab-content" id="1s">
-      <div class="card">
-        <h3>База знаний 1С</h3>
-        <input type="text" placeholder="Поиск инструкции..." class="search-input">
-        <div class="list-group">
-          <div class="list-item">Ошибка ФР при открытии чека</div>
-          <div class="list-item">Возврат день в день</div>
-          <div class="list-item">Перемещение товара</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Вкладка МЕРЧ (Фото из БД) -->
-    <div class="tab-content" id="merch">
-      <div class="card">
-        <div class="header">
-          <h3>Стандарты выкладки</h3>
-          <input type="file" id="uploadMerchInput" style="display:none" accept="image/*">
-          <button class="btn btn-primary btn-sm" id="btnUploadMerch" style="display:none">+ Фото</button>
-        </div>
-        <div class="grid" id="merchGrid">
-           <div class="loader">Загрузка фото...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Вкладка АДМИНКА (Пользователи) -->
-    <div class="tab-content" id="admin">
-      <div class="card">
-        <div class="header">
-          <h3>Сотрудники</h3>
-          <button class="btn btn-primary" onclick="document.getElementById('modalUser').style.display='flex'">+ Добавить</button>
-        </div>
-        <table class="simple-table" id="usersTable">
-          <thead><tr><th>Имя</th><th>Роль</th><th>Действия</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ -->
-    <div class="modal" id="modalUser" style="display:none;">
-      <div class="modal-content">
-        <h3>Новый сотрудник</h3>
-        <input type="email" id="newUserEmail" placeholder="Email (для входа)" class="input-field">
-        <input type="password" id="newUserPass" placeholder="Пароль" class="input-field">
-        <input type="text" id="newUserName" placeholder="ФИО" class="input-field">
-        <select id="newUserRole" class="input-field">
-          <option value="seller">Продавец</option>
-          <option value="senior_seller">Старший продавец</option>
-          <option value="director">Директор</option>
-        </select>
-        <div class="modal-actions">
-          <button class="btn" onclick="document.getElementById('modalUser').style.display='none'">Отмена</button>
-          <button class="btn btn-primary" id="btnCreateUser">Создать</button>
-        </div>
-      </div>
-    </div>
-
   </div>
 
-  <script type="module" src="../js/main.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
+
