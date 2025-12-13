@@ -324,7 +324,7 @@
 <body>
 
   <!-- ==================== LOGIN VIEW ==================== -->
-  <div id="login-view" class="container login-card" style="display:none; height: 100vh; display: flex; flex-direction: column; justify-content: center;">
+  <div id="login-view" class="container login-card" style="display:none; height: 100vh; flex-direction: column; justify-content: center;">
     <div class="logo">A | X</div>
     <h2>Вход в систему</h2>
     <p style="margin-bottom: 20px; color: #666;">Введите данные сотрудника</p>
@@ -583,15 +583,16 @@
 
         const { data } = await supabase
           .from('schedule')
-          .select('date, shift_id, shifts(title, start_time, end_time)')
+          .select('date, shift_id')
           .eq('user_id', currentUser.id)
           .eq('month', monthStr);
 
         this.shifts.clear();
         if (data) {
           data.forEach(item => {
-            if (item.shift_id && item.shifts) {
-              this.shifts.set(item.date, item.shifts);
+            if (item.shift_id) {
+              const s = (globalShiftTypes || []).find(x => String(x.id) === String(item.shift_id));
+              if (s) this.shifts.set(item.date, s);
             }
           });
         }
@@ -1255,3 +1256,4 @@
   </script>
 </body>
 </html>
+
