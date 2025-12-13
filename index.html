@@ -100,6 +100,27 @@
     h1 { font-size: 32px; letter-spacing: 4px; font-weight: 300; margin: 0; }
     
     .profile-menu-container { position: relative; }
+    
+    /* Кнопка профиля с фото */
+    .profile-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 10px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .profile-btn:hover { background: var(--hover-color); border-color: var(--border-color); }
+    .profile-avatar {
+      width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #333;
+    }
+    .profile-info { display: flex; flex-direction: column; text-align: right; }
+    .profile-name { font-weight: 600; font-size: 14px; }
+    .profile-role { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px;}
+
     .dropdown-menu {
       display: none;
       position: absolute;
@@ -107,15 +128,42 @@
       top: 100%;
       background: var(--card-bg);
       border: 1px solid var(--border-color);
-      min-width: 150px;
+      min-width: 200px;
       z-index: 1000;
       margin-top: 5px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     .menu-item {
-      display: block; width: 100%; text-align: left; padding: 10px 15px;
-      background: none; border: none; color: var(--text-main); cursor: pointer;
+      display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px 15px;
+      background: none; border: none; color: var(--text-main); cursor: pointer; border-bottom: 1px solid var(--border-color);
+      font-size: 14px;
     }
+    .menu-item:last-child { border-bottom: none; }
     .menu-item:hover { background: var(--hover-color); }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8); z-index: 2000;
+      display: none; align-items: center; justify-content: center;
+    }
+    .modal {
+      background: var(--bg-color); border: 1px solid var(--border-color);
+      padding: 30px; width: 100%; max-width: 400px;
+      position: relative;
+    }
+    .close-modal { position: absolute; top: 10px; right: 10px; cursor: pointer; font-size: 20px; }
+
+    /* Светлая тема */
+    body.light-theme {
+      --bg-color: #f5f5f5;
+      --card-bg: #ffffff;
+      --text-main: #000000;
+      --text-muted: #666666;
+      --border-color: #dddddd;
+      --accent-color: #000000;
+      --hover-color: #eeeeee;
+    }
 
     /* Tabs */
     .tabs { display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 1px solid var(--border-color); }
@@ -215,14 +263,37 @@
       
       <div class="actions">
         <div class="profile-menu-container">
-          <button class="btn btn-sm" id="profileBtn">
-            <span id="headerLogin">...</span> 
-            <span id="headerRole" class="badge">...</span>
+          <button class="profile-btn" id="profileBtn">
+            <div class="profile-info">
+               <span class="profile-name" id="headerLogin">...</span> 
+               <span class="profile-role" id="headerRole">...</span>
+            </div>
+            <img src="https://ui-avatars.com/api/?name=User&background=333&color=fff" class="profile-avatar" id="headerAvatar" alt="Foto">
           </button>
+          
           <div class="dropdown-menu" id="profileMenu">
-            <button id="logoutBtn" class="menu-item">Выйти</button>
+            <button id="themeBtn" class="menu-item">
+               <span>🌓</span> Сменить тему
+            </button>
+            <button id="changePassBtn" class="menu-item">
+               <span>🔒</span> Сменить пароль
+            </button>
+            <button id="logoutBtn" class="menu-item" style="color: #f44336;">
+               <span>🚪</span> Выйти
+            </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- MODAL: CHANGE PASSWORD -->
+    <div id="modalChangePass" class="modal-overlay">
+      <div class="modal">
+        <span class="close-modal" onclick="document.getElementById('modalChangePass').style.display='none'">&times;</span>
+        <h3 style="margin-bottom:20px;">Смена пароля</h3>
+        <input type="password" id="oldPass" placeholder="Старый пароль" class="input-field">
+        <input type="password" id="newPass" placeholder="Новый пароль" class="input-field">
+        <button class="btn btn-primary" id="btnSavePass" style="width:100%">Сохранить</button>
       </div>
     </div>
 
@@ -684,17 +755,59 @@
 
     // --- APP LOGIC ---
     async function initApp() {
-      // Header
-      document.getElementById('headerLogin').textContent = currentUser.login || currentUser.full_name;
-      const roles = { 'director': 'Директор', 'senior_seller': 'Старший', 'seller': 'Продавец' };
+      // Header Info
+      document.getElementById('headerLogin').textContent = currentUser.full_name;
+      const roles = { 'director': 'Директор', 'senior_seller': 'Старший продавец', 'seller': 'Продавец' };
       document.getElementById('headerRole').textContent = roles[currentUser.role] || currentUser.role;
+      
+      // Avatar
+      const avatarUrl = currentUser.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.full_name)}&background=333&color=fff`;
+      document.getElementById('headerAvatar').src = avatarUrl;
 
-      // Profile Menu
+      // Theme
+      if (localStorage.getItem('ax_theme') === 'light') {
+        document.body.classList.add('light-theme');
+      }
+
+      // Profile Menu Events
       const pBtn = document.getElementById('profileBtn');
       const pMenu = document.getElementById('profileMenu');
+      
       pBtn.onclick = (e) => { e.stopPropagation(); pMenu.style.display = pMenu.style.display === 'block' ? 'none' : 'block'; };
       document.addEventListener('click', () => pMenu.style.display = 'none');
+      
+      // Logout
       document.getElementById('logoutBtn').onclick = logoutUser;
+      
+      // Theme Toggle
+      document.getElementById('themeBtn').onclick = (e) => {
+        e.stopPropagation();
+        document.body.classList.toggle('light-theme');
+        localStorage.setItem('ax_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+      };
+
+      // Change Password
+      document.getElementById('changePassBtn').onclick = (e) => {
+        e.stopPropagation();
+        document.getElementById('modalChangePass').style.display = 'flex';
+        pMenu.style.display = 'none';
+      };
+
+      document.getElementById('btnSavePass').onclick = async () => {
+        const oldP = document.getElementById('oldPass').value;
+        const newP = document.getElementById('newPass').value;
+        if (!oldP || !newP) return alert('Заполните поля');
+        
+        if (oldP !== currentUser.password) return alert('Старый пароль неверный');
+        
+        const { error } = await supabase.from('employees').update({ password: newP }).eq('id', currentUser.id);
+        
+        if (error) alert('Ошибка: ' + error.message);
+        else {
+          alert('Пароль изменен! Войдите заново.');
+          logoutUser();
+        }
+      };
 
       // Tabs
       const tabs = document.querySelectorAll('.tab');
