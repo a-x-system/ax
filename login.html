@@ -19,7 +19,7 @@
     <h2>Вход в систему</h2>
     <p style="margin-bottom: 20px; color: #666;">Введите данные сотрудника</p>
     
-    <input type="email" id="email" placeholder="Email" class="input-field">
+    <input type="text" id="email" placeholder="Логин" class="input-field">
     <input type="password" id="password" placeholder="Пароль" class="input-field">
     
     <button class="btn btn-primary" style="width: 100%; margin-top: 10px;" id="btnLogin">Войти</button>
@@ -27,7 +27,7 @@
   </div>
 
   <script type="module">
-    import { supabase } from './js/supabaseClient.js';
+    import { loginUser } from './js/supabaseClient.js';
 
     document.getElementById('btnLogin').onclick = async () => {
       const email = document.getElementById('email').value;
@@ -44,14 +44,13 @@
       btn.textContent = 'Входим...';
       err.textContent = '';
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (error) {
-        err.textContent = 'Ошибка: ' + error.message;
+      try {
+        await loginUser(email, password);
+        window.location.href = 'index.html';
+      } catch (e) {
+        err.textContent = e.message;
         btn.disabled = false;
         btn.textContent = 'Войти';
-      } else {
-        window.location.href = 'index.html';
       }
     };
   </script>
