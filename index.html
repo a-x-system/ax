@@ -928,174 +928,172 @@
 
     // --- APP LOGIC ---
     async function initApp() {
-      // Preload data in background
-      preloadGlobalData();
+      try {
+        // Preload data (AWAITING to ensure data exists before rendering)
+        await preloadGlobalData();
 
-      // Header Info
-      document.getElementById('headerLogin').textContent = currentUser.full_name;
-      const roles = { 'director': 'Директор', 'senior_seller': 'Старший продавец', 'seller': 'Продавец' };
-      document.getElementById('headerRole').textContent = roles[currentUser.role] || currentUser.role;
-      
-      // Avatar
-      const avatarUrl = currentUser.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.full_name)}&background=333&color=fff`;
-      document.getElementById('headerAvatar').src = avatarUrl;
-
-      // Theme
-      if (localStorage.getItem('ax_theme') === 'light') {
-        document.body.classList.add('light-theme');
-      }
-
-      // Profile Menu Events
-      const pBtn = document.getElementById('profileBtn');
-      const pMenu = document.getElementById('profileMenu');
-      
-      pBtn.onclick = (e) => { e.stopPropagation(); pMenu.style.display = pMenu.style.display === 'block' ? 'none' : 'block'; };
-      document.addEventListener('click', () => pMenu.style.display = 'none');
-      
-      // Logout
-      document.getElementById('logoutBtn').onclick = logoutUser;
-      
-      // Theme Toggle
-      document.getElementById('themeBtn').onclick = (e) => {
-        e.stopPropagation();
-        document.body.classList.toggle('light-theme');
-        localStorage.setItem('ax_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
-      };
-
-      // Change Photo
-      const avatarInput = document.getElementById('avatarUploadInput');
-      document.getElementById('changePhotoBtn').onclick = (e) => {
-        e.stopPropagation();
-        avatarInput.click();
-        pMenu.style.display = 'none';
-      };
-
-      avatarInput.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        try {
-          // 1. Upload
-          const btn = document.getElementById('changePhotoBtn');
-          const originalText = btn.innerHTML;
-          btn.textContent = 'Загрузка...';
-          
-          const url = await uploadFile('photos', file);
-          
-          // 2. Update DB
-          const { error } = await supabase.from('employees').update({ photo_url: url }).eq('id', currentUser.id);
-          
-          if (error) throw error;
-
-          // 3. Update Local State & UI
-          currentUser.photo_url = url;
-          localStorage.setItem('ax_user', JSON.stringify(currentUser));
-          document.getElementById('headerAvatar').src = url;
-          
-          alert('Фото обновлено!');
-        } catch (err) {
-          alert('Ошибка: ' + err.message);
-        } finally {
-          e.target.value = '';
-          // Restore button text if menu was still open (though we closed it)
-          document.getElementById('changePhotoBtn').innerHTML = '<span>📸</span> Сменить фото';
+        // Header Info
+        if (currentUser) {
+           document.getElementById('headerLogin').textContent = currentUser.full_name || currentUser.login;
+           const roles = { 'director': 'Директор', 'senior_seller': 'Старший продавец', 'seller': 'Продавец' };
+           document.getElementById('headerRole').textContent = roles[currentUser.role] || currentUser.role;
+           
+           // Avatar
+           const avatarUrl = currentUser.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.full_name || 'User')}&background=333&color=fff`;
+           document.getElementById('headerAvatar').src = avatarUrl;
         }
-      };
 
-      // Change Password
-      document.getElementById('changePassBtn').onclick = (e) => {
-        e.stopPropagation();
-        document.getElementById('modalChangePass').style.display = 'flex';
-        pMenu.style.display = 'none';
-      };
-
-      document.getElementById('btnSavePass').onclick = async () => {
-        const oldP = document.getElementById('oldPass').value;
-        const newP = document.getElementById('newPass').value;
-        if (!oldP || !newP) return alert('Заполните поля');
-        
-        if (oldP !== currentUser.password) return alert('Старый пароль неверный');
-        
-        const { error } = await supabase.from('employees').update({ password: newP }).eq('id', currentUser.id);
-        
-        if (error) alert('Ошибка: ' + error.message);
-        else {
-          alert('Пароль изменен! Войдите заново.');
-          logoutUser();
+        // Theme
+        if (localStorage.getItem('ax_theme') === 'light') {
+          document.body.classList.add('light-theme');
         }
-      };
 
-      // Tabs
-      const tabs = document.querySelectorAll('.tab');
-      tabs.forEach(tab => {
-        tab.onclick = (e) => {
-          e.preventDefault();
-          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-          tab.classList.add('active');
-          document.getElementById(tab.getAttribute('data-tab')).classList.add('active');
+        // Profile Menu Events
+        const pBtn = document.getElementById('profileBtn');
+        const pMenu = document.getElementById('profileMenu');
+        
+        // Remove old event listeners to avoid duplicates if re-inited
+        const newPBtn = pBtn.cloneNode(true);
+        pBtn.parentNode.replaceChild(newPBtn, pBtn);
+        
+        newPBtn.onclick = (e) => { e.stopPropagation(); pMenu.style.display = pMenu.style.display === 'block' ? 'none' : 'block'; };
+        document.addEventListener('click', () => pMenu.style.display = 'none');
+        
+        // Logout
+        document.getElementById('logoutBtn').onclick = logoutUser;
+        
+        // Theme Toggle
+        document.getElementById('themeBtn').onclick = (e) => {
+          e.stopPropagation();
+          document.body.classList.toggle('light-theme');
+          localStorage.setItem('ax_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
         };
-      });
 
-      // Role Based Access
-      const isAdmin = ['director', 'senior_seller'].includes(currentUser.role);
-      if (isAdmin) {
-        document.getElementById('adminTab').style.display = 'block';
-        loadUsersTable();
-        const scheduleManager = new ScheduleManager('schedule-manager');
-        await scheduleManager.init();
-      } else {
-        document.getElementById('viewTeamSched').style.display = 'none';
+        // Change Photo
+        const avatarInput = document.getElementById('avatarUploadInput');
+        document.getElementById('changePhotoBtn').onclick = (e) => {
+          e.stopPropagation();
+          avatarInput.click();
+          pMenu.style.display = 'none';
+        };
+
+        avatarInput.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          try {
+            const btn = document.getElementById('changePhotoBtn');
+            btn.textContent = 'Загрузка...';
+            const url = await uploadFile('photos', file);
+            const { error } = await supabase.from('employees').update({ photo_url: url }).eq('id', currentUser.id);
+            if (error) throw error;
+            currentUser.photo_url = url;
+            localStorage.setItem('ax_user', JSON.stringify(currentUser));
+            document.getElementById('headerAvatar').src = url;
+            alert('Фото обновлено!');
+          } catch (err) {
+            alert('Ошибка: ' + err.message);
+          } finally {
+            e.target.value = '';
+            document.getElementById('changePhotoBtn').innerHTML = '<span>📸</span> Сменить фото';
+          }
+        };
+
+        // Change Password
+        document.getElementById('changePassBtn').onclick = (e) => {
+          e.stopPropagation();
+          document.getElementById('modalChangePass').style.display = 'flex';
+          pMenu.style.display = 'none';
+        };
+
+        document.getElementById('btnSavePass').onclick = async () => {
+          const oldP = document.getElementById('oldPass').value;
+          const newP = document.getElementById('newPass').value;
+          if (!oldP || !newP) return alert('Заполните поля');
+          if (oldP !== currentUser.password) return alert('Старый пароль неверный');
+          const { error } = await supabase.from('employees').update({ password: newP }).eq('id', currentUser.id);
+          if (error) alert('Ошибка: ' + error.message);
+          else {
+            alert('Пароль изменен! Войдите заново.');
+            logoutUser();
+          }
+        };
+
+        // Tabs
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+          tab.onclick = (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.getAttribute('data-tab')).classList.add('active');
+          };
+        });
+
+        // Role Based Access
+        const isAdmin = ['director', 'senior_seller'].includes(currentUser.role);
+        if (isAdmin) {
+          document.getElementById('adminTab').style.display = 'block';
+          loadUsersTable();
+          const scheduleManager = new ScheduleManager('schedule-manager');
+          await scheduleManager.init();
+        } else {
+          document.getElementById('viewTeamSched').style.display = 'none';
+        }
+
+        // Init Components
+        new Calendar('calendar-wrapper');
+        loadContent();
+        
+        // Schedule Switch
+        const btnMy = document.getElementById('viewMySched');
+        const btnTeam = document.getElementById('viewTeamSched');
+        btnMy.onclick = () => {
+          document.getElementById('myScheduleView').style.display = 'block';
+          document.getElementById('teamScheduleView').style.display = 'none';
+          btnMy.classList.add('active'); btnTeam.classList.remove('active');
+        };
+        btnTeam.onclick = () => {
+          document.getElementById('myScheduleView').style.display = 'none';
+          document.getElementById('teamScheduleView').style.display = 'block';
+          btnTeam.classList.add('active'); btnMy.classList.remove('active');
+        };
+
+        // Merch Upload
+        const btnUpload = document.getElementById('btnUploadMerch');
+        if(btnUpload) {
+          btnUpload.onclick = () => document.getElementById('uploadMerchInput').click();
+          document.getElementById('uploadMerchInput').onchange = handleMerchUpload;
+        }
+        
+        // Create User
+        const btnCreate = document.getElementById('btnCreateUser');
+        if(btnCreate) btnCreate.onclick = createUserHandler;
+
+        // 1S Search
+        const searchInput = document.querySelector('#1s .search-input');
+        const list = document.querySelector('#1s .list-group');
+        async function load1S(q='') {
+           list.innerHTML = '<div class="loader">Поиск...</div>';
+           let query = supabase.from('manuals').select('*').order('title');
+           if(q) query = query.ilike('title', `%${q}%`);
+           const { data } = await query;
+           list.innerHTML = '';
+           if(!data || !data.length) { list.innerHTML = '<div>Ничего не найдено</div>'; return; }
+           data.forEach(item => {
+             const el = document.createElement('div'); el.style.padding='10px'; el.style.borderBottom='1px solid #333'; el.style.cursor='pointer';
+             el.textContent = item.title;
+             el.onclick = () => alert(item.content || 'Пусто');
+             list.appendChild(el);
+           });
+        }
+        load1S();
+        searchInput.addEventListener('input', (e) => load1S(e.target.value));
+
+      } catch (err) {
+        console.error('INIT ERROR:', err);
+        alert('Ошибка запуска приложения: ' + err.message);
       }
-
-      // Init Components
-      new Calendar('calendar-wrapper');
-      loadContent();
-      
-      // Schedule Switch
-      const btnMy = document.getElementById('viewMySched');
-      const btnTeam = document.getElementById('viewTeamSched');
-      btnMy.onclick = () => {
-        document.getElementById('myScheduleView').style.display = 'block';
-        document.getElementById('teamScheduleView').style.display = 'none';
-        btnMy.classList.add('active'); btnTeam.classList.remove('active');
-      };
-      btnTeam.onclick = () => {
-        document.getElementById('myScheduleView').style.display = 'none';
-        document.getElementById('teamScheduleView').style.display = 'block';
-        btnTeam.classList.add('active'); btnMy.classList.remove('active');
-      };
-
-      // Merch Upload
-      const btnUpload = document.getElementById('btnUploadMerch');
-      if(btnUpload) {
-        btnUpload.onclick = () => document.getElementById('uploadMerchInput').click();
-        document.getElementById('uploadMerchInput').onchange = handleMerchUpload;
-      }
-      
-      // Create User
-      const btnCreate = document.getElementById('btnCreateUser');
-      if(btnCreate) btnCreate.onclick = createUserHandler;
-
-      // 1S Search
-      const searchInput = document.querySelector('#1s .search-input');
-      const list = document.querySelector('#1s .list-group');
-      async function load1S(q='') {
-         list.innerHTML = '<div class="loader">Поиск...</div>';
-         let query = supabase.from('manuals').select('*').order('title');
-         if(q) query = query.ilike('title', `%${q}%`);
-         const { data } = await query;
-         list.innerHTML = '';
-         if(!data || !data.length) { list.innerHTML = '<div>Ничего не найдено</div>'; return; }
-         data.forEach(item => {
-           const el = document.createElement('div'); el.style.padding='10px'; el.style.borderBottom='1px solid #333'; el.style.cursor='pointer';
-           el.textContent = item.title;
-           el.onclick = () => alert(item.content || 'Пусто');
-           list.appendChild(el);
-         });
-      }
-      load1S();
-      searchInput.addEventListener('input', (e) => load1S(e.target.value));
     }
 
     async function loadContent() {
