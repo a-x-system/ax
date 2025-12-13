@@ -275,13 +275,40 @@
     .cal-btn:hover { background: var(--text-main); color: var(--bg-color); }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border-color); border: 1px solid var(--border-color); }
     .cal-dow { text-align: center; color: var(--text-muted); padding: 15px 5px; font-size: 10px; text-transform: uppercase; background: var(--card-bg); }
-    .cal-day { min-height: 100px; background: var(--card-bg); padding: 10px; display: flex; flex-direction: column; position: relative; }
-    .cal-day:hover { background: #1a1a1a; }
-    .cal-day.today { background: #1a1a1a; }
-    .cal-day.today::after { content: ''; position: absolute; top: 10px; right: 10px; width: 6px; height: 6px; background: var(--accent-color); border-radius: 50%; }
-    .cal-day.other { opacity: 0.3; }
+    
+    /* Квадратики календаря (старый дизайн) */
+    .cal-day { 
+      min-height: 100px; 
+      background: var(--card-bg); 
+      padding: 10px; 
+      display: flex; 
+      flex-direction: column; 
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .cal-day:hover { 
+      background: #1a1a1a; 
+      transform: scale(1.02); /* Легкое увеличение при наведении */
+      z-index: 2;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .cal-day.today { background: #1a1a1a; border: 1px solid var(--text-main); }
+    .cal-day.today::after { content: 'СЕГОДНЯ'; position: absolute; top: 5px; right: 5px; font-size: 8px; color: var(--accent-color); font-weight: bold; }
+    .cal-day.other { opacity: 0.3; pointer-events: none; }
+    
     .daynum { font-weight: 300; font-size: 14px; color: var(--text-muted); margin-bottom: 10px; }
-    .shift-marker { font-size: 10px; color: var(--text-main); margin-top: 5px; padding: 2px 0; border-left: 2px solid var(--text-main); padding-left: 8px; }
+    
+    /* Маркер смены внутри календаря */
+    .shift-marker { 
+      font-size: 11px; 
+      color: var(--bg-color); 
+      background: var(--text-main);
+      padding: 4px 6px;
+      margin-top: auto;
+      border-radius: 2px;
+      text-align: center;
+      font-weight: 600;
+    }
 
     /* Merch Grid */
     .merch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
@@ -632,9 +659,10 @@
             const shift = this.shifts.get(dateKey);
             const marker = document.createElement('div');
             marker.className = 'shift-marker';
-            marker.textContent = `${shift.start_time.slice(0,5)}-${shift.end_time.slice(0,5)}`;
+            // Используем текст смены (10:00-19:00)
+            marker.textContent = `${shift.start_time.slice(0,5)} - ${shift.end_time.slice(0,5)}`;
+            // Подсветка "рабочего" стиля
             cell.appendChild(marker);
-            cell.style.background = '#e3f2fd';
           }
           grid.appendChild(cell);
         }
@@ -929,11 +957,15 @@
     // --- APP LOGIC ---
     async function initApp() {
       try {
-        // Preload data (AWAITING to ensure data exists before rendering)
+        // Preload data in background, but don't block render if it fails
+      try {
         await preloadGlobalData();
+      } catch (e) {
+        console.warn('Offline mode or error preloading data:', e);
+      }
 
-        // Header Info
-        if (currentUser) {
+      // Header Info
+      if (currentUser) {
            document.getElementById('headerLogin').textContent = currentUser.full_name || currentUser.login;
            const roles = { 'director': 'Директор', 'senior_seller': 'Старший продавец', 'seller': 'Продавец' };
            document.getElementById('headerRole').textContent = roles[currentUser.role] || currentUser.role;
@@ -1062,8 +1094,11 @@
         // Merch Upload
         const btnUpload = document.getElementById('btnUploadMerch');
         if(btnUpload) {
-          btnUpload.onclick = () => document.getElementById('uploadMerchInput').click();
-          document.getElementById('uploadMerchInput').onchange = handleMerchUpload;
+          const uploadInput = document.getElementById('uploadMerchInput');
+          if (uploadInput) {
+             btnUpload.onclick = () => uploadInput.click();
+             uploadInput.onchange = handleMerchUpload;
+          }
         }
         
         // Create User
