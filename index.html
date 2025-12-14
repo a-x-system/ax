@@ -1291,12 +1291,16 @@
     }
 
     function initLoginEvents() {
+      console.log('Initializing Login Events...');
       const toggleBtn = document.getElementById('togglePassword');
       const passInput = document.getElementById('loginPassword');
       const loginBtn = document.getElementById('btnLogin');
+      const loginEmail = document.getElementById('loginEmail');
       
       if (toggleBtn && passInput) {
-          toggleBtn.onclick = () => {
+          toggleBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation(); // Ensure click is caught
             const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passInput.setAttribute('type', type);
             toggleBtn.innerHTML = type === 'password' 
@@ -1308,9 +1312,9 @@
       }
 
       if (loginBtn) {
-          loginBtn.onclick = async () => {
-            const login = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
+          loginBtn.onclick = async function() {
+            const login = loginEmail.value.trim();
+            const password = passInput.value.trim();
             const err = document.getElementById('loginErrorMsg');
 
             if (!login || !password) { err.textContent = 'Заполните все поля'; return; }
@@ -1330,11 +1334,12 @@
             }
           };
 
-          const onEnter = (e) => {
+          const onEnter = function(e) {
             if (e.key === 'Enter') loginBtn.click();
           };
-          document.getElementById('loginEmail')?.addEventListener('keydown', onEnter);
-          passInput?.addEventListener('keydown', onEnter);
+          
+          if (loginEmail) loginEmail.addEventListener('keydown', onEnter);
+          if (passInput) passInput.addEventListener('keydown', onEnter);
       }
     }
 
