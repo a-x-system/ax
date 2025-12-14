@@ -942,10 +942,11 @@
         const tbody = document.getElementById('schedBody');
         const tfoot = document.getElementById('schedFoot');
         const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
         
         // --- HEADER ---
+        // Always render header to ensure dates are correct for the month
         let headerHtml = '<tr><th rowspan="2">№</th><th rowspan="2" class="sticky-col">Фамилия И. О.</th><th rowspan="2">Должность</th>';
-        // Days Row
         for (let d = 1; d <= daysInMonth; d++) {
            const dateObj = new Date(year, month, d);
            const dayName = dateObj.toLocaleDateString('ru-RU', { weekday: 'short' });
@@ -953,7 +954,6 @@
            headerHtml += `<th class="${isWeekend}">${d}</th>`;
         }
         headerHtml += '<th rowspan="2">Итого<br>часов</th><th rowspan="2">Вых</th></tr><tr>';
-        // Day Names Row
         for (let d = 1; d <= daysInMonth; d++) {
            const dateObj = new Date(year, month, d);
            const dayName = dateObj.toLocaleDateString('ru-RU', { weekday: 'short' });
@@ -964,158 +964,206 @@
         thead.innerHTML = headerHtml;
 
         // --- BODY ---
-        tbody.innerHTML = '';
+        // Check if we can perform a smart update
+        // We need full rebuild if:
+        // 1. Employee list changed length
+        // 2. Month changed (different days count)
+        // 3. Table is empty
+        const shouldRebuild = tbody.children.length !== this.employees.length || 
+                              tbody.dataset.month !== monthStr;
+        
+        tbody.dataset.month = monthStr; // Update marker
+
         if (this.employees.length === 0) { tbody.innerHTML = '<tr><td colspan="40">Нет сотрудников.</td></tr>'; return; }
         
+        if (shouldRebuild) {
+             tbody.innerHTML = ''; // Clear for full rebuild
+        }
+
         // Arrays for totals per day
         const dayCounts = new Array(daysInMonth + 1).fill(0);
 
         this.employees.forEach((user, idx) => {
-          const tr = document.createElement('tr');
-          
-          // Meta info
-          let roleName = user.role === 'director' ? 'Директор' : (user.role === 'senior_seller' ? 'Ст. продавец' : 'Продавец');
-          tr.innerHTML = `
-            <td>${idx + 1}</td>
-            <td class="sticky-col" style="text-align:left; padding-left:10px;">${user.full_name}</td>
-            <td>${roleName}</td>
-          `;
+          let tr;
+          if (shouldRebuild) {
+              tr = document.createElement('tr');
+              tbody.appendChild(tr);
+          } else {
+              tr = tbody.children[idx];
+          }
 
+          // --- Row Content Building ---
+          // If rebuilding, create full structure. If updating, only touch cells.
+          // Note: To keep code simple and robust, we will regenerate the innerHTML of the row 
+          // ONLY if it's a rebuild. If it's an update, we'll iterate cells.
+          // Actually, regenerating row innerHTML kills selection too.
+          // So, for smooth update, we must access existing cells.
+          
           let totalHours = 0;
           let totalDaysOff = 0;
+          
+          // Meta info (cols 0, 1, 2)
+          if (shouldRebuild) {
+              let roleName = user.role === 'director' ? 'Директор' : (user.role === 'senior_seller' ? 'Ст. продавец' : 'Продавец');
+              // Create 3 meta cells + N day cells + 2 total cells
+              // Total cells = 3 + daysInMonth + 2
+              let html = `<td>${idx + 1}</td>
+                          <td class="sticky-col" style="text-align:left; padding-left:10px;">${user.full_name}</td>
+                          <td>${roleName}</td>`;
+              
+              for (let d = 1; d <= daysInMonth; d++) html += `<td class="day-cell" data-d="${d}"></td>`;
+              html += `<td class="total-hours"></td><td class="total-days"></td>`;
+              tr.innerHTML = html;
+          }
 
+          // Update Day Cells
           for (let d = 1; d <= daysInMonth; d++) {
-            const td = document.createElement('td');
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            
-            // Logic
             const record = this.scheduleData.find(s => s.user_id === user.id && s.date === dateStr);
-            const shiftId = record ? record.shift_id : null; // null = B
+            const shiftId = record ? record.shift_id : null;
             
-            // Styling
-            if (shiftId) dayCounts[d]++; // Count workers for this day
+            if (shiftId) dayCounts[d]++;
             else totalDaysOff++;
+
+            // Calculate Hours
+            if (shiftId) {
+                const shiftInfo = this.shiftTypes.find(s => s.id === shiftId);
+                if (shiftInfo) {
+                   if (shiftInfo.work_hours !== undefined && shiftInfo.work_hours !== null) {
+                       totalHours += parseFloat(shiftInfo.work_hours);
+                   } else {
+                       const startH = parseInt(shiftInfo.start_time.split(':')[0]);
+                       const endH = parseInt(shiftInfo.end_time.split(':')[0]);
+                       let duration = endH - startH;
+                       if (duration < 0) duration += 24; 
+                       totalHours += (duration - 1); 
+                   }
+                }
+            }
+
+            // Cell Management
+            // Index offset: 3 (meta) + d - 1
+            const cellIndex = 3 + (d - 1);
+            const td = tr.children[cellIndex];
+            
+            // If cell doesn't exist (edge case), skip
+            if (!td) continue;
 
             // Check permissions
             const canEdit = ['director', 'senior_seller'].includes(currentUser.role);
 
             if (canEdit) {
-                const select = document.createElement('select');
-                select.className = `cell-input ${shiftId ? 'cell-work' : 'cell-b'}`;
-                select.dataset.userId = user.id;
-                select.dataset.date = dateStr;
-                
-                // Options: B (null) + Shifts
-                const optB = document.createElement('option'); optB.value = ''; optB.text = 'B'; 
-                if (!shiftId) optB.selected = true;
-                select.appendChild(optB);
-                
-                // Filter shifts based on user role
-                let allowedShifts = this.shiftTypes;
-                if (user.role === 'director') {
-                    // Director sees mainly director shifts (1-2)
-                    allowedShifts = this.shiftTypes.filter(st => [1, 2].includes(st.id));
-                } else {
-                    // Sellers: 3-12
-                    allowedShifts = this.shiftTypes.filter(st => ![1, 2].includes(st.id));
-                }
-                
-                // If current shift is not in allowed list (e.g. legacy data), add it anyway to avoid hidden value
-                if (shiftId && !allowedShifts.find(s => s.id === shiftId)) {
-                    const missing = this.shiftTypes.find(s => s.id === shiftId);
-                    if (missing) allowedShifts.push(missing);
-                }
-                
-                // Group definitions
-                const groups = [
-                    { label: 'Директор (1.0)', ids: [1, 2] },
-                    { label: 'Продавцы (0.75)', ids: [3, 4, 5, 6, 7] },
-                    { label: 'Продавцы (0.5)', ids: [8, 9, 10, 11, 12] }
-                ];
+                // Check if select exists
+                let select = td.querySelector('select');
+                if (!select) {
+                    select = document.createElement('select');
+                    select.dataset.userId = user.id;
+                    select.dataset.date = dateStr;
+                    select.onchange = (e) => this.handleShiftChange(e.target);
+                    td.innerHTML = '';
+                    td.appendChild(select);
+                    
+                    // Populate Options (only once)
+                    const optB = document.createElement('option'); optB.value = ''; optB.text = 'B'; 
+                    select.appendChild(optB);
 
-                // Create optgroups
-                groups.forEach(g => {
-                    const groupShifts = allowedShifts.filter(s => g.ids.includes(s.id));
-                    if (groupShifts.length > 0) {
+                    let allowedShifts = this.shiftTypes;
+                    if (user.role === 'director') allowedShifts = this.shiftTypes.filter(st => [1, 2].includes(st.id));
+                    else allowedShifts = this.shiftTypes.filter(st => ![1, 2].includes(st.id));
+
+                    // Add legacy/missing
+                    // We can't easily check shiftId here for *creation* because it might change later.
+                    // But we should ensure all shifts are present.
+                    // For performance, we add all relevant shifts.
+                    // If a shiftId appears that is NOT in allowed, we might need to re-add it dynamically, 
+                    // but that's rare. Let's stick to standard groups.
+
+                    const groups = [
+                        { label: 'Директор (1.0)', ids: [1, 2] },
+                        { label: 'Продавцы (0.75)', ids: [3, 4, 5, 6, 7] },
+                        { label: 'Продавцы (0.5)', ids: [8, 9, 10, 11, 12] }
+                    ];
+
+                    groups.forEach(g => {
+                        const groupShifts = allowedShifts.filter(s => g.ids.includes(s.id));
+                        if (groupShifts.length > 0) {
+                            const optgroup = document.createElement('optgroup');
+                            optgroup.label = g.label;
+                            groupShifts.sort((a,b) => a.id - b.id).forEach(st => {
+                                const opt = document.createElement('option');
+                                opt.value = st.id;
+                                opt.textContent = `${st.id} | ${st.start_time.slice(0,5)}-${st.end_time.slice(0,5)}`;
+                                optgroup.appendChild(opt);
+                            });
+                            select.appendChild(optgroup);
+                        }
+                    });
+                    
+                    // Others
+                    const knownIds = groups.flatMap(g => g.ids);
+                    const others = allowedShifts.filter(s => !knownIds.includes(s.id));
+                    if (others.length > 0) {
                         const optgroup = document.createElement('optgroup');
-                        optgroup.label = g.label;
-                        groupShifts.sort((a,b) => a.id - b.id).forEach(st => {
-                            const opt = document.createElement('option');
-                            opt.value = st.id;
-                            opt.textContent = `${st.id} | ${st.start_time.slice(0,5)}-${st.end_time.slice(0,5)}`;
-                            if (String(st.id) === String(shiftId)) opt.selected = true;
-                            optgroup.appendChild(opt);
+                        optgroup.label = 'Прочие';
+                        others.sort((a,b) => a.id - b.id).forEach(st => {
+                             const opt = document.createElement('option');
+                             opt.value = st.id;
+                             opt.textContent = `${st.id} | ${st.start_time.slice(0,5)}-${st.end_time.slice(0,5)}`;
+                             optgroup.appendChild(opt);
                         });
                         select.appendChild(optgroup);
                     }
-                });
-
-                // Add any remaining shifts not in groups
-                const knownIds = groups.flatMap(g => g.ids);
-                const others = allowedShifts.filter(s => !knownIds.includes(s.id));
-                if (others.length > 0) {
-                    const optgroup = document.createElement('optgroup');
-                    optgroup.label = 'Прочие';
-                    others.sort((a,b) => a.id - b.id).forEach(st => {
-                        const opt = document.createElement('option');
-                        opt.value = st.id;
-                        opt.textContent = `${st.id} | ${st.start_time.slice(0,5)}-${st.end_time.slice(0,5)}`;
-                        if (String(st.id) === String(shiftId)) opt.selected = true;
-                        optgroup.appendChild(opt);
-                    });
-                    select.appendChild(optgroup);
                 }
                 
-                // Add tooltip
+                // Update Value only if changed (prevents flicker/focus loss)
+                // Note: shiftId is number or null. select.value is string.
+                const newVal = shiftId ? String(shiftId) : '';
+                if (select.value !== newVal) {
+                    select.value = newVal;
+                    // Also update legacy/missing option if needed? 
+                    // (Skipping complexity for now, assuming standard shifts)
+                }
+
+                // Update Style
+                select.className = `cell-input ${shiftId ? 'cell-work' : 'cell-b'}`;
+                
+                // Tooltip
                 if (shiftId) {
                    const s = this.shiftTypes.find(x => x.id === shiftId);
                    if (s) select.title = `Смена ${s.id}: ${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}`;
+                } else {
+                    select.title = '';
+                }
+
+            } else {
+                // Read-only
+                let div = td.querySelector('div.cell-input');
+                if (!div) {
+                    div = document.createElement('div');
+                    td.innerHTML = '';
+                    td.appendChild(div);
                 }
                 
-                select.onchange = (e) => this.handleShiftChange(e.target);
-                td.appendChild(select);
-            } else {
-                // Read-only view for sellers
-                const div = document.createElement('div');
                 div.className = `cell-input ${shiftId ? 'cell-work' : 'cell-b'}`;
                 div.style.cursor = 'default';
                 
                 if (shiftId) {
                    const s = this.shiftTypes.find(x => x.id === shiftId);
-                   // Show ID + Time for sellers too
                    div.textContent = s ? `${s.id}` : shiftId;
                    if (s) div.title = `${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}`;
                    div.style.fontSize = '11px';
                 } else {
                    div.textContent = 'B';
-                }
-                
-                td.appendChild(div);
-            }
-            
-            // Calculate Hours
-            if (shiftId) {
-                const shiftInfo = this.shiftTypes.find(s => s.id === shiftId);
-                if (shiftInfo) {
-                   // Use precise work_hours from DB if available
-                   if (shiftInfo.work_hours !== undefined && shiftInfo.work_hours !== null) {
-                       totalHours += parseFloat(shiftInfo.work_hours);
-                   } else {
-                       // Fallback calculation
-                       const startH = parseInt(shiftInfo.start_time.split(':')[0]);
-                       const endH = parseInt(shiftInfo.end_time.split(':')[0]);
-                       let duration = endH - startH;
-                       if (duration < 0) duration += 24; 
-                       totalHours += (duration - 1); // Approx break
-                   }
+                   div.title = '';
                 }
             }
+          } // end for days
 
-            tr.appendChild(td);
-          }
-          
-          tr.innerHTML += `<td><b>${totalHours}</b></td><td>${totalDaysOff}</td>`;
-          tbody.appendChild(tr);
+          // Update Totals
+          const cellTotalH = tr.children[3 + daysInMonth];
+          const cellTotalD = tr.children[3 + daysInMonth + 1];
+          if (cellTotalH) cellTotalH.innerHTML = `<b>${totalHours}</b>`;
+          if (cellTotalD) cellTotalD.innerHTML = `${totalDaysOff}`;
         });
 
         // --- FOOTER (Totals) ---
