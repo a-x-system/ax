@@ -1,4 +1,3 @@
-// --- 5. INITIALIZATION & ROUTING ---
 document.addEventListener('DOMContentLoaded', async () => {
   currentUser = getCurrentUser();
 
@@ -21,7 +20,6 @@ async function showAppView() {
   await initApp();
 }
 
-// --- LOGIN LOGIC ---
 function initLoginEvents() {
   const toggleBtn = document.getElementById('togglePassword');
   const passInput = document.getElementById('loginPassword');
@@ -62,7 +60,6 @@ function initLoginEvents() {
         }
       };
 
-      // Enter key support
       const onEnter = (e) => {
         if (e.key === 'Enter') loginBtn.click();
       };
@@ -71,15 +68,18 @@ function initLoginEvents() {
   }
 }
 
-// --- APP LOGIC ---
 async function initApp() {
   try {
-    // Preload data in background, but don't block render if it fails
-  try {
-    await preloadGlobalData();
-  } catch (e) {
-    console.warn('Offline mode or error preloading data:', e);
-  }
+    try {
+      await preloadGlobalData();
+    } catch (e) {
+      console.warn('Offline mode or error preloading data:', e);
+    }
+
+    // Run seed check
+    if (typeof seedShifts === 'function') {
+        seedShifts().catch(e => console.log('Seed warning:', e));
+    }
 
   // Header Info
   if (currentUser) {
@@ -87,7 +87,6 @@ async function initApp() {
        const roles = { 'director': 'Директор', 'senior_seller': 'Старший продавец', 'seller': 'Продавец' };
        document.getElementById('headerRole').textContent = roles[currentUser.role] || currentUser.role;
        
-       // Avatar
        const avatarUrl = currentUser.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.full_name || 'User')}&background=333&color=fff`;
        document.getElementById('headerAvatar').src = avatarUrl;
     }
@@ -101,7 +100,6 @@ async function initApp() {
     const pBtn = document.getElementById('profileBtn');
     const pMenu = document.getElementById('profileMenu');
     
-    // Remove old event listeners to avoid duplicates if re-inited
     const newPBtn = pBtn.cloneNode(true);
     pBtn.parentNode.replaceChild(newPBtn, pBtn);
     
@@ -186,21 +184,17 @@ async function initApp() {
     // Role Based Access
     const isAdmin = ['director', 'senior_seller'].includes(currentUser.role);
     
-    // 1. Admin Tab (Employees) - Restricted
     if (isAdmin) {
       document.getElementById('adminTab').style.display = 'block';
       loadUsersTable();
     }
 
-    // 2. Team Schedule - Init for Everyone (Read-only for sellers)
     const scheduleManager = new ScheduleManager('schedule-manager');
     await scheduleManager.init();
 
-    // Init Components
     new Calendar('calendar-wrapper');
     loadContent();
     
-    // Schedule Switch
     const btnMy = document.getElementById('viewMySched');
     const btnTeam = document.getElementById('viewTeamSched');
     btnMy.onclick = () => {
@@ -214,7 +208,6 @@ async function initApp() {
       btnTeam.classList.add('active'); btnMy.classList.remove('active');
     };
 
-    // Merch Upload
     const btnUpload = document.getElementById('btnUploadMerch');
     if(btnUpload) {
       const uploadInput = document.getElementById('uploadMerchInput');
@@ -224,60 +217,10 @@ async function initApp() {
       }
     }
     
-    // Create User
     const btnCreate = document.getElementById('btnCreateUser');
     if(btnCreate) btnCreate.onclick = createUserHandler;
 
-    // Run seed if not done (auto-run for this update)
-    // In production we wouldn't do this, but for this task we ensure shifts are populated
-    if (typeof seedShifts === 'function') {
-        // We can't easily know if we need to seed without querying first.
-        // But upsert is safe. Let's try to seed on init to ensure data is correct.
-        // To avoid spamming, maybe check localstorage or just run it.
-        // upsert is cheap enough for 12 rows.
-        seedShifts().catch(e => console.log('Seed warning:', e));
-    }
-
-    // Handle New Shift Creation
-    const btnSaveShift = document.getElementById('btnSaveNewShift');
-    if (btnSaveShift) {
-        btnSaveShift.onclick = async () => {
-            const title = document.getElementById('newShiftTitle').value;
-            const start = document.getElementById('newShiftStart').value;
-            const end = document.getElementById('newShiftEnd').value;
-            
-            if (!title || !start || !end) return alert('Заполните все поля');
-            
-            btnSaveShift.disabled = true;
-            btnSaveShift.textContent = 'Сохранение...';
-            
-            try {
-                // Ensure time format HH:MM:00 if needed, but input type="time" gives HH:MM
-                const { error } = await createShiftType({ 
-                    title, 
-                    start_time: start, 
-                    end_time: end 
-                });
-                
-                if (error) throw error;
-                
-                alert('Смена добавлена!');
-                document.getElementById('modalAddShift').style.display = 'none';
-                
-                // Reload schedule to show new shift type in dropdowns and legend
-                const scheduleManager = new ScheduleManager('schedule-manager');
-                await scheduleManager.init();
-                
-            } catch (err) {
-                alert('Ошибка: ' + err.message);
-            } finally {
-                btnSaveShift.disabled = false;
-                btnSaveShift.textContent = 'Создать';
-            }
-        };
-    }
-
-  // 1S Search - SAFE INIT
+  // 1S Search
   try {
     const tab1S = document.getElementById('tab-1s');
     if (tab1S) {
