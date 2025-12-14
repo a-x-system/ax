@@ -30,9 +30,6 @@ class ScheduleManager {
           <h2 style="text-transform: capitalize; margin: 0 15px;">${monthName}</h2>
           <button id="schedNext" class="btn btn-sm">→</button>
         </div>
-        <div class="schedule-actions">
-           <button id="btnAddShiftType" class="btn btn-sm" style="display:none;">+ Смена</button>
-        </div>
       </div>
       <div class="table-responsive">
         <table class="schedule-table" id="schedTable">
@@ -45,36 +42,63 @@ class ScheduleManager {
     `;
     document.getElementById('schedPrev').onclick = () => this.changeMonth(-1);
     document.getElementById('schedNext').onclick = () => this.changeMonth(1);
-    
-    // Add Shift Button Logic
-    const btnAdd = document.getElementById('btnAddShiftType');
-    if (['director', 'senior_seller'].includes(currentUser.role)) {
-        btnAdd.style.display = 'inline-flex';
-        btnAdd.onclick = () => {
-            const modal = document.getElementById('modalAddShift');
-            if (modal) {
-                modal.style.display = 'flex';
-                // Reset fields
-                document.getElementById('newShiftTitle').value = '';
-                document.getElementById('newShiftStart').value = '';
-                document.getElementById('newShiftEnd').value = '';
-            }
-        };
-    }
-
     this.renderLegend();
   }
   
   renderLegend() {
     const leg = document.getElementById('schedLegend');
     leg.innerHTML = '';
-    this.shiftTypes.forEach(s => {
-       const div = document.createElement('div');
-       div.className = 'legend-item';
-       div.innerHTML = `<div class="legend-key">${s.id}</div> <span>${s.title}</span>`;
-       leg.appendChild(div);
+    
+    // Define Groups
+    const groups = [
+        { title: 'Директор (1.0)', ids: [1, 2], color: '#ffeb3b', textColor: '#000' },
+        { title: 'Продавцы (0.75)', ids: [3, 4, 5, 6, 7], color: '#4caf50', textColor: '#fff' },
+        { title: 'Продавцы (0.5)', ids: [8, 9, 10, 11, 12], color: '#2196f3', textColor: '#fff' }
+    ];
+
+    groups.forEach(group => {
+        // Group Header
+        const header = document.createElement('div');
+        header.className = 'legend-header';
+        header.textContent = group.title;
+        leg.appendChild(header);
+
+        // Filter shifts for this group
+        const groupShifts = this.shiftTypes.filter(s => group.ids.includes(s.id));
+        
+        groupShifts.forEach(s => {
+           const div = document.createElement('div');
+           div.className = 'legend-item';
+           div.innerHTML = `<div class="legend-key" style="border-color:${group.color}; color:${group.color}">${s.id}</div> 
+                            <span>${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}</span>`;
+           leg.appendChild(div);
+        });
     });
+
+    // Output any other shifts not in groups (e.g. Cleaners or custom)
+    const knownIds = groups.flatMap(g => g.ids);
+    const others = this.shiftTypes.filter(s => !knownIds.includes(s.id));
+    
+    if (others.length > 0) {
+        const header = document.createElement('div');
+        header.className = 'legend-header';
+        header.textContent = 'Прочие';
+        leg.appendChild(header);
+        
+        others.forEach(s => {
+           const div = document.createElement('div');
+           div.className = 'legend-item';
+           div.innerHTML = `<div class="legend-key">${s.id}</div> <span>${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}</span>`;
+           leg.appendChild(div);
+        });
+    }
+
     // Добавим B - выходной
+    const headerB = document.createElement('div');
+    headerB.className = 'legend-header';
+    headerB.textContent = 'Обозначения';
+    leg.appendChild(headerB);
+
     const divB = document.createElement('div');
     divB.className = 'legend-item';
     divB.innerHTML = `<div class="legend-key key-b">B</div> <span>Выходной</span>`;
@@ -173,10 +197,7 @@ class ScheduleManager {
             // Filter shifts based on user role
             let allowedShifts = this.shiftTypes;
             if (user.role === 'director') {
-                // Director sees mainly director shifts (1-2) but can technically assign any if needed,
-                // BUT for UX we prioritize theirs. Let's just show relevant ones or group them.
-                // The request says "divide", so strict separation is better.
-                // Director shifts: 1, 2
+                // Director sees mainly director shifts (1-2)
                 allowedShifts = this.shiftTypes.filter(st => [1, 2].includes(st.id));
             } else {
                 // Sellers: 3-12
