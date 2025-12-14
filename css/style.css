@@ -60,10 +60,17 @@ body {
 }
 
 /* Login Styles */
+.login-view-container {
+    display: flex; 
+    height: 100vh; 
+    flex-direction: column; 
+    justify-content: center;
+}
 .login-card { 
     max-width: 400px; 
     text-align: center; 
     margin: auto; 
+    width: 100%;
 }
 .logo { 
     font-size: 48px; font-weight: 800; margin-bottom: 20px; 
@@ -375,4 +382,20 @@ th { color: var(--text-muted); font-weight: 400; text-transform: uppercase; font
     .cal-day { min-height: 80px; padding: 5px; }
     .shift-marker { font-size: 9px; padding: 2px 4px; }
     .modal { width: 95%; padding: 20px; }
+}
+
+.legend-header {
+  grid-column: 1 / -1;
+  margin-top: 15px;
+  margin-bottom: 5px;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.calendar-card {
+  background: transparent;
+  border: none;
+  padding: 0;
 }
