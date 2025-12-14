@@ -540,6 +540,14 @@
 
   <!-- INLINED SCRIPTS FOR STABILITY -->
   <script>
+    window.onerror = function(msg, url, line, col, error) {
+       // Suppress benign resize observer errors
+       if (msg.includes('ResizeObserver')) return;
+       // Alert critical errors
+       alert('System Error: ' + msg + '\nLine: ' + line);
+       console.error(error);
+    };
+
     // --- 1. SUPABASE CONFIG ---
     const SUPABASE_URL = 'https://uuhsjusmhmmjceujzoiw.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1aHNqdXNtaG1tamNldWp6b2l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MDU0MTUsImV4cCI6MjA4MTE4MTQxNX0.zaOtLcZGoNV77AiLrbODv3gIamlHWh8QwbBdWeOfJLw';
@@ -1216,9 +1224,19 @@
     let autoRefreshInterval = null;
     let heartbeatInterval = null;
 
+    // Initialize immediately when DOM is ready
     document.addEventListener('DOMContentLoaded', async () => {
-      currentUser = getCurrentUser();
+      console.log('DOM Ready');
+      
+      // 1. Try to restore session
+      try {
+          currentUser = getCurrentUser();
+      } catch (e) {
+          console.error('Session restore error:', e);
+          currentUser = null;
+      }
 
+      // 2. Route to view
       if (currentUser) {
         // Verify user exists in DB to prevent stale sessions
         const isValid = await verifyUser(currentUser.login, currentUser.password);
@@ -1235,26 +1253,39 @@
     // Verify user credentials against DB silently
     async function verifyUser(login, password) {
         if (!supabase) return true; // Offline fallback
-        const { data, error } = await supabase
-            .from('employees')
-            .select('id')
-            .eq('login', login)
-            .eq('password', password)
-            .maybeSingle();
-        return data && !error;
+        try {
+            const { data, error } = await supabase
+                .from('employees')
+                .select('id')
+                .eq('login', login)
+                .eq('password', password)
+                .maybeSingle();
+            return data && !error;
+        } catch (e) {
+            console.warn('Verify user failed:', e);
+            return true; // Assume valid if DB check fails to avoid lockout
+        }
     }
 
     function showLoginView() {
       if (autoRefreshInterval) clearInterval(autoRefreshInterval);
       if (heartbeatInterval) clearInterval(heartbeatInterval);
-      document.getElementById('login-view').style.display = 'flex';
-      document.getElementById('app-view').style.display = 'none';
-      initLoginEvents();
+      
+      const loginView = document.getElementById('login-view');
+      const appView = document.getElementById('app-view');
+      if (loginView) loginView.style.display = 'flex';
+      if (appView) appView.style.display = 'none';
+      
+      // Initialize events slightly later to ensure DOM painting
+      setTimeout(initLoginEvents, 50);
     }
 
     async function showAppView() {
-      document.getElementById('login-view').style.display = 'none';
-      document.getElementById('app-view').style.display = 'block';
+      const loginView = document.getElementById('login-view');
+      const appView = document.getElementById('app-view');
+      if (loginView) loginView.style.display = 'none';
+      if (appView) appView.style.display = 'block';
+      
       await initApp();
       startAutoRefresh();
       startHeartbeat();
@@ -1262,19 +1293,14 @@
 
     function startAutoRefresh() {
         if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-        // Refresh every 60 seconds
         autoRefreshInterval = setInterval(async () => {
-            if (document.hidden) return; // Skip if tab is backgrounded
-            
-            // Check which tab is active
+            if (document.hidden) return; 
             const activeTab = document.querySelector('.tab.active');
             if (activeTab && activeTab.dataset.tab === 'schedule') {
-                const mySched = document.getElementById('myScheduleView');
-                if (mySched.style.display !== 'none' && window.calendarApp) {
+                if (document.getElementById('myScheduleView').style.display !== 'none' && window.calendarApp) {
                      await window.calendarApp.loadMyShifts();
                 }
-                const teamSched = document.getElementById('teamScheduleView');
-                if (teamSched.style.display !== 'none' && window.scheduleApp) {
+                if (document.getElementById('teamScheduleView').style.display !== 'none' && window.scheduleApp) {
                      await window.scheduleApp.loadMonthData();
                 }
             }
@@ -1283,7 +1309,6 @@
 
     function startHeartbeat() {
         if (heartbeatInterval) clearInterval(heartbeatInterval);
-        // Ping DB every 5 minutes to keep connection alive
         heartbeatInterval = setInterval(async () => {
             if (!supabase) return;
             await supabase.from('shifts').select('id').limit(1);
@@ -1296,50 +1321,73 @@
       const passInput = document.getElementById('loginPassword');
       const loginBtn = document.getElementById('btnLogin');
       const loginEmail = document.getElementById('loginEmail');
+      const errBox = document.getElementById('loginErrorMsg');
       
-      if (toggleBtn && passInput) {
-          toggleBtn.onclick = function(e) {
-            e.preventDefault();
-            e.stopPropagation(); // Ensure click is caught
-            const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passInput.setAttribute('type', type);
-            toggleBtn.innerHTML = type === 'password' 
-              ? '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>'
-              : '<svg viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>';
-            const svg = toggleBtn.querySelector('svg');
-            if(svg) svg.style.fill = 'var(--text-muted)';
-          };
-      }
-
+      // Clear previous events to avoid duplicates (clone node trick)
       if (loginBtn) {
-          loginBtn.onclick = async function() {
-            const login = loginEmail.value.trim();
-            const password = passInput.value.trim();
-            const err = document.getElementById('loginErrorMsg');
+          const newBtn = loginBtn.cloneNode(true);
+          loginBtn.parentNode.replaceChild(newBtn, loginBtn);
+          
+          newBtn.onclick = async function(e) {
+            e.preventDefault();
+            const login = loginEmail ? loginEmail.value.trim() : '';
+            const password = passInput ? passInput.value.trim() : '';
 
-            if (!login || !password) { err.textContent = 'Заполните все поля'; return; }
-            loginBtn.disabled = true; 
-            const originalText = loginBtn.textContent;
-            let dots = 0; const interval = setInterval(() => { dots = (dots + 1) % 4; loginBtn.textContent = 'Входим' + '.'.repeat(dots); }, 300);
-            err.textContent = 'Проверка...'; err.style.color = '#888';
+            if (!login || !password) { 
+                if (errBox) errBox.textContent = 'Заполните все поля'; 
+                return; 
+            }
+            
+            newBtn.disabled = true; 
+            const originalText = newBtn.textContent;
+            newBtn.textContent = 'Вход...';
+            if (errBox) { errBox.textContent = 'Проверка...'; errBox.style.color = '#888'; }
 
             try {
               await loginUser(login, password);
-              clearInterval(interval);
-              err.style.color = '#4caf50'; err.textContent = 'Успешно!'; loginBtn.textContent = 'Успешно!';
+              if (errBox) { errBox.style.color = '#4caf50'; errBox.textContent = 'Успешно!'; }
+              newBtn.textContent = 'Успешно!';
               setTimeout(() => location.reload(), 500);
             } catch (e) {
-              clearInterval(interval); loginBtn.textContent = originalText; loginBtn.disabled = false;
-              err.style.color = '#f44336'; err.textContent = e.message;
+              newBtn.textContent = originalText; 
+              newBtn.disabled = false;
+              if (errBox) { errBox.style.color = '#f44336'; errBox.textContent = e.message || 'Ошибка входа'; }
             }
           };
+      }
 
-          const onEnter = function(e) {
-            if (e.key === 'Enter') loginBtn.click();
-          };
+      if (toggleBtn && passInput) {
+          // Clone to remove old listeners
+          const newToggle = toggleBtn.cloneNode(true);
+          toggleBtn.parentNode.replaceChild(newToggle, toggleBtn);
           
-          if (loginEmail) loginEmail.addEventListener('keydown', onEnter);
-          if (passInput) passInput.addEventListener('keydown', onEnter);
+          newToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passInput.setAttribute('type', type);
+            newToggle.innerHTML = type === 'password' 
+              ? '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>'
+              : '<svg viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>';
+            const svg = newToggle.querySelector('svg');
+            if(svg) svg.style.fill = 'var(--text-muted)';
+          });
+      }
+
+      const onEnter = function(e) {
+         if (e.key === 'Enter') {
+             const btn = document.getElementById('btnLogin');
+             if (btn) btn.click();
+         }
+      };
+      
+      if (loginEmail) {
+          loginEmail.removeEventListener('keydown', onEnter); // Clean up
+          loginEmail.addEventListener('keydown', onEnter);
+      }
+      if (passInput) {
+          passInput.removeEventListener('keydown', onEnter); // Clean up
+          passInput.addEventListener('keydown', onEnter);
       }
     }
 
