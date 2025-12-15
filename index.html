@@ -1637,23 +1637,28 @@
     function renderManualContent(text) {
       const esc = (s) => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
       const lines = String(text || '').split(/\n+/);
-      const html = lines.map(line => {
-        const urls = line.match(/https?:\/\/[^\s]+/g);
-        if (!urls) return `<p>${esc(line)}</p>`;
-        let out = esc(line);
+      const blocks = [];
+      lines.forEach(line => {
+        const urls = line.match(/https?:\/\/\S+/g) || [];
+        // Текст без URL
+        const plain = esc(line.replace(/https?:\/\/\S+/g, '').trim());
+        if (plain) blocks.push(`<p>${plain}</p>`);
+        // Вложенные медиа
         urls.forEach(u => {
           let pathname = '';
           try { pathname = new URL(u).pathname; } catch {}
-          const isImg = /\.(png|jpg|jpeg|gif|webp)$/i.test(pathname) || /\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i.test(u);
-          const isVid = /\.(mp4|webm|ogg)$/i.test(pathname) || /\.(mp4|webm|ogg)(\?.*)?$/i.test(u);
-          const replacement = isImg ? `<img src="${u}" style="max-width:100%;border:1px solid var(--border-color);border-radius:4px;margin:6px 0"/>`
-                                    : (isVid ? `<video src="${u}" controls style="width:100%;border:1px solid var(--border-color);border-radius:4px;margin:6px 0"></video>`
-                                             : `<a href="${u}" target="_blank">${u}</a>`);
-          out = out.replace(u, replacement);
+          const isImg = /\.(png|jpg|jpeg|gif|webp)$/i.test(pathname);
+          const isVid = /\.(mp4|webm|ogg)$/i.test(pathname);
+          if (isImg) {
+            blocks.push(`<img src="${u}" style="max-width:100%;border:1px solid var(--border-color);border-radius:4px;margin:6px 0"/>`);
+          } else if (isVid) {
+            blocks.push(`<video src="${u}" controls style="width:100%;border:1px solid var(--border-color);border-radius:4px;margin:6px 0"></video>`);
+          } else {
+            blocks.push(`<a href="${u}" target="_blank">${esc(u)}</a>`);
+          }
         });
-        return `<div>${out}</div>`;
-      }).join('');
-      return html;
+      });
+      return blocks.join('');
     }
 
     function openManual(title, content) {
