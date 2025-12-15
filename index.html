@@ -154,7 +154,12 @@
     }
     .profile-btn:hover { background: var(--hover-color); border-color: var(--border-color); }
     .profile-avatar {
-      width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #333;
+      width: 32px; height: 32px; border-radius: 50%; background: #222; display: grid; place-items: center; overflow: hidden;
+    }
+    .profile-avatar-text { 
+      font-weight:800; color:#fff; font-size:13px; letter-spacing:0; text-transform:uppercase; line-height:1;
+      border: 1px solid var(--border-color); box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      background: linear-gradient(135deg, #2a2a2a, #0f0f0f);
     }
     .profile-info { display: flex; flex-direction: column; text-align: right; }
     .profile-name { font-weight: 600; font-size: 14px; }
@@ -457,6 +462,14 @@
         <input type="password" id="oldPass" placeholder="Старый пароль" class="input-field">
         <input type="password" id="newPass" placeholder="Новый пароль" class="input-field">
         <button class="btn btn-primary" id="btnSavePass" style="width:100%">Сохранить</button>
+      </div>
+    </div>
+    <!-- MODAL: INFO -->
+    <div id="modalInfo" class="modal-overlay">
+      <div class="modal" style="max-width:800px">
+        <span class="close-modal" onclick="closeModal('modalInfo')">&times;</span>
+        <h3 id="modalTitle"></h3>
+        <div id="modalBody" style="display:block; max-height:70vh; overflow:auto"></div>
       </div>
     </div>
 
