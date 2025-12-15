@@ -671,7 +671,13 @@
 
     async function createMerchItem(title, url, description) {
       if (!supabase) return { error: { message: 'Нет соединения' } };
-      return await supabase.from('merch_items').insert({ title, image_url: url, description });
+      // Сначала пробуем с description; при ошибке — без него
+      let res = await supabase.from('merch_items').insert({ title, image_url: url, description });
+      if (res.error) {
+        const fallbackTitle = description ? `${title} — ${description}` : title;
+        res = await supabase.from('merch_items').insert({ title: fallbackTitle, image_url: url });
+      }
+      return res;
     }
 
     async function uploadFile(bucket, file) {
@@ -681,6 +687,21 @@
       await supabase.storage.from(bucket).upload(path, file);
       const { data } = supabase.storage.from(bucket).getPublicUrl(path);
       return data.publicUrl;
+    }
+
+    async function uploadMedia(file) {
+      // Пытаемся последовательно: photos → Profile → public
+      const buckets = ['photos', 'Profile', 'public'];
+      let lastErr = null;
+      for (const b of buckets) {
+        try {
+          const url = await uploadFile(b, file);
+          return url;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr || new Error('Загрузка не удалась');
     }
 
     function computeInitials(nameOrLogin) {
@@ -1575,12 +1596,13 @@
                    const { data } = await query;
                    list.innerHTML = '';
                    if(!data || !data.length) { list.innerHTML = '<div>Ничего не найдено</div>'; return; }
-                   data.forEach(item => {
-                      const el = document.createElement('div'); el.style.padding='10px'; el.style.borderBottom='1px solid #333'; el.style.cursor='pointer';
-                      el.textContent = item.title;
-                      el.onclick = () => alert(item.content || 'Пусто');
-                      list.appendChild(el);
-                   });
+                    data.forEach(item => {
+                       const el = document.createElement('div');
+                       el.style.padding='12px'; el.style.borderBottom='1px solid var(--border-color)'; el.style.cursor='pointer';
+                       el.innerHTML = `<div style="font-weight:600">${item.title}</div><div style="color:var(--text-muted);font-size:12px;margin-top:4px">Нажмите для просмотра</div>`;
+                       el.onclick = () => openManual(item.title, item.content || '');
+                       list.appendChild(el);
+                    });
                 };
                 load1S();
                 window.reloadManuals = () => load1S();
@@ -1593,8 +1615,7 @@
                 if (upInput) upInput.onchange = async (e) => {
                   const file = e.target.files[0]; if (!file) return;
                   try {
-                    const bucket = file.type.startsWith('video') ? 'videos' : 'photos';
-                    const url = await uploadFile(bucket, file);
+                    const url = await uploadMedia(file);
                     const ta = document.getElementById('manualContent');
                     ta.value = (ta.value || '') + `\n${url}`;
                   } catch(err) { alert(err.message); } finally { e.target.value=''; }
@@ -1612,6 +1633,38 @@
       } catch (err) {
          console.warn('1S module init error', err);
       }
+
+    function renderManualContent(text) {
+      const esc = (s) => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+      const lines = String(text || '').split(/\n+/);
+      const html = lines.map(line => {
+        const urls = line.match(/https?:\/\/[^\s]+/g);
+        if (!urls) return `<p>${esc(line)}</p>`;
+        let out = esc(line);
+        urls.forEach(u => {
+          let pathname = '';
+          try { pathname = new URL(u).pathname; } catch {}
+          const isImg = /\.(png|jpg|jpeg|gif|webp)$/i.test(pathname) || /\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i.test(u);
+          const isVid = /\.(mp4|webm|ogg)$/i.test(pathname) || /\.(mp4|webm|ogg)(\?.*)?$/i.test(u);
+          const replacement = isImg ? `<img src="${u}" style="max-width:100%;border:1px solid var(--border-color);border-radius:4px;margin:6px 0"/>`
+                                    : (isVid ? `<video src="${u}" controls style="width:100%;border:1px solid var(--border-color);border-radius:4px;margin:6px 0"></video>`
+                                             : `<a href="${u}" target="_blank">${u}</a>`);
+          out = out.replace(u, replacement);
+        });
+        return `<div>${out}</div>`;
+      }).join('');
+      return html;
+    }
+
+    function openManual(title, content) {
+      const m = document.getElementById('modalInfo');
+      if (!m) return;
+      const t = document.getElementById('modalTitle');
+      const b = document.getElementById('modalBody');
+      if (t) t.textContent = title || '';
+      if (b) b.innerHTML = renderManualContent(content || '');
+      m.style.display = 'flex';
+    }
 
       } catch (err) {
         console.error('INIT ERROR:', err);
@@ -1647,8 +1700,7 @@
       const oldText = btn.textContent;
       btn.textContent = '...'; btn.disabled = true;
       try {
-        const bucket = file.type.startsWith('video') ? 'videos' : 'photos';
-        const url = await uploadFile(bucket, file);
+        const url = await uploadMedia(file);
         const title = prompt('Название:', file.type.startsWith('video') ? 'Видео' : 'Фото');
         const desc = title ? prompt('Описание:', '') : null;
         if (title) { await createMerchItem(title, url, desc || null); loadContent(); }
