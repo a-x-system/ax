@@ -1513,17 +1513,7 @@
           }
         };
 
-        // Tabs
-        const tabs = document.querySelectorAll('.tab');
-        tabs.forEach(tab => {
-          tab.onclick = (e) => {
-            e.preventDefault();
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            tab.classList.add('active');
-            document.getElementById(tab.getAttribute('data-tab')).classList.add('active');
-          };
-        });
+
 
         // Role Based Access
         const isAdmin = ['director', 'senior_seller'].includes(currentUser.role);
