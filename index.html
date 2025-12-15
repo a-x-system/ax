@@ -495,14 +495,18 @@
       <h2>Инструкции 1С</h2>
       <input type="text" class="input-field search-input" placeholder="Поиск инструкций...">
       <div class="list-group" style="margin-top: 20px;"></div>
+      <div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
+        <button class="btn btn-sm" id="btnAddManual">Добавить инструкцию</button>
+        <input type="file" id="uploadManualInput" hidden accept="image/*,video/*">
+      </div>
     </div>
 
     <!-- CONTENT: MERCH -->
     <div class="tab-content" id="merch">
       <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
         <h2>Мерчандайзинг</h2>
-        <button class="btn btn-sm" id="btnUploadMerch">Добавить фото</button>
-        <input type="file" id="uploadMerchInput" hidden accept="image/*">
+        <button class="btn btn-sm" id="btnUploadMerch">Добавить медиа</button>
+        <input type="file" id="uploadMerchInput" hidden accept="image/*,video/*">
       </div>
       <div class="merch-grid" id="merchGrid"></div>
     </div>
@@ -665,9 +669,9 @@
       return data || [];
     }
 
-    async function createMerchItem(title, url) {
+    async function createMerchItem(title, url, description) {
       if (!supabase) return { error: { message: 'Нет соединения' } };
-      return await supabase.from('merch_items').insert({ title, image_url: url });
+      return await supabase.from('merch_items').insert({ title, image_url: url, description });
     }
 
     async function uploadFile(bucket, file) {
@@ -677,6 +681,16 @@
       await supabase.storage.from(bucket).upload(path, file);
       const { data } = supabase.storage.from(bucket).getPublicUrl(path);
       return data.publicUrl;
+    }
+
+    function computeInitials(nameOrLogin) {
+      const raw = String(nameOrLogin || '').trim();
+      if (!raw) return 'UU';
+      const parts = raw.split(/[\s-]+/).filter(Boolean);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      return raw.slice(0, 2).toUpperCase();
     }
 
     // --- SEED SHIFTS ---
@@ -1435,12 +1449,10 @@
            document.getElementById('headerLogin').textContent = currentUser.full_name || currentUser.login;
            const roles = { 'director': 'Директор', 'senior_seller': 'Старший продавец', 'seller': 'Продавец' };
            document.getElementById('headerRole').textContent = roles[currentUser.role] || currentUser.role;
-           const avatarEl = document.getElementById('headerAvatar');
-           if (avatarEl) {
-             const name = (currentUser.full_name || currentUser.login || 'User').trim();
-             const initials = name.split(/\s+/).map(w => w[0]).slice(0,2).join('').toUpperCase();
-             avatarEl.textContent = initials;
-           }
+          const avatarEl = document.getElementById('headerAvatar');
+          if (avatarEl) {
+            avatarEl.textContent = computeInitials(currentUser.full_name || currentUser.login || 'User');
+          }
         }
 
         // Theme
@@ -1564,14 +1576,37 @@
                    list.innerHTML = '';
                    if(!data || !data.length) { list.innerHTML = '<div>Ничего не найдено</div>'; return; }
                    data.forEach(item => {
-                     const el = document.createElement('div'); el.style.padding='10px'; el.style.borderBottom='1px solid #333'; el.style.cursor='pointer';
-                     el.textContent = item.title;
-                     el.onclick = () => alert(item.content || 'Пусто');
-                     list.appendChild(el);
+                      const el = document.createElement('div'); el.style.padding='10px'; el.style.borderBottom='1px solid #333'; el.style.cursor='pointer';
+                      el.textContent = item.title;
+                      el.onclick = () => alert(item.content || 'Пусто');
+                      list.appendChild(el);
                    });
                 };
                 load1S();
+                window.reloadManuals = () => load1S();
                 searchInput.addEventListener('input', (e) => load1S(e.target.value));
+                const btnAdd = document.getElementById('btnAddManual');
+                if (btnAdd) btnAdd.onclick = () => { document.getElementById('modalAddManual').style.display = 'flex'; };
+                const btnAttach = document.getElementById('btnAttachManualMedia');
+                if (btnAttach) btnAttach.onclick = () => { document.getElementById('uploadManualInput').click(); };
+                const upInput = document.getElementById('uploadManualInput');
+                if (upInput) upInput.onchange = async (e) => {
+                  const file = e.target.files[0]; if (!file) return;
+                  try {
+                    const bucket = file.type.startsWith('video') ? 'videos' : 'photos';
+                    const url = await uploadFile(bucket, file);
+                    const ta = document.getElementById('manualContent');
+                    ta.value = (ta.value || '') + `\n${url}`;
+                  } catch(err) { alert(err.message); } finally { e.target.value=''; }
+                };
+                const btnSaveManual = document.getElementById('btnSaveManual');
+                if (btnSaveManual) btnSaveManual.onclick = async () => {
+                  const title = document.getElementById('manualTitle').value.trim();
+                  const content = document.getElementById('manualContent').value.trim();
+                  if (!title || !content) return alert('Заполните заголовок и текст');
+                  const { error } = await supabase.from('manuals').insert({ title, content, category: '1s' });
+                  if (error) alert(error.message); else { document.getElementById('modalAddManual').style.display='none'; if (window.reloadManuals) window.reloadManuals(); }
+                };
             }
         }
       } catch (err) {
@@ -1592,8 +1627,14 @@
         items.forEach(item => {
           const el = document.createElement('div');
           el.className = 'photo-card';
-          el.style.backgroundImage = `url('${item.image_url}')`;
-          el.innerHTML = `<div class="photo-title">${item.title}</div>`;
+          const url = item.image_url;
+          const isVideo = url && (url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.ogg'));
+          if (isVideo) {
+            el.innerHTML = `<video src="${url}" controls style="width:100%;height:100%;object-fit:cover"></video><div class="photo-title">${item.title}${item.description ? ' — ' + item.description : ''}</div>`;
+          } else {
+            el.style.backgroundImage = `url('${url}')`;
+            el.innerHTML = `<div class="photo-title">${item.title}${item.description ? ' — ' + item.description : ''}</div>`;
+          }
           merchGrid.appendChild(el);
         });
       }
@@ -1606,9 +1647,11 @@
       const oldText = btn.textContent;
       btn.textContent = '...'; btn.disabled = true;
       try {
-        const url = await uploadFile('photos', file);
-        const title = prompt('Название:', 'Фото');
-        if (title) { await createMerchItem(title, url); loadContent(); }
+        const bucket = file.type.startsWith('video') ? 'videos' : 'photos';
+        const url = await uploadFile(bucket, file);
+        const title = prompt('Название:', file.type.startsWith('video') ? 'Видео' : 'Фото');
+        const desc = title ? prompt('Описание:', '') : null;
+        if (title) { await createMerchItem(title, url, desc || null); loadContent(); }
       } catch (err) { alert(err.message); } 
       finally { btn.textContent = oldText; btn.disabled = false; e.target.value = ''; }
     }
@@ -1649,3 +1692,17 @@
   </script>
 </body>
 </html>
+    <!-- MODAL: ADD MANUAL -->
+    <div id="modalAddManual" class="modal-overlay">
+      <div class="modal">
+        <span class="close-modal" onclick="closeModal('modalAddManual')">&times;</span>
+        <h3>Новая инструкция</h3>
+        <input type="text" id="manualTitle" placeholder="Заголовок" class="input-field">
+        <textarea id="manualContent" placeholder="Текст и ссылки" class="input-field" style="min-height:160px"></textarea>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn" id="btnAttachManualMedia">Вложить медиа</button>
+          <small style="color:var(--text-muted)">Фото/Видео загрузятся и ссылка добавится в текст</small>
+        </div>
+        <button class="btn btn-primary" id="btnSaveManual">Сохранить</button>
+      </div>
+    </div>
