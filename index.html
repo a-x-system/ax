@@ -1,16 +1,18 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>A | X System</title>
+  <link rel="icon" href="faviconarmaniwhite.png" type="image/png">
+  <link rel="apple-touch-icon" href="faviconarmaniwhite.png">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+  <!-- CSS INLINED FOR DEPLOYMENT STABILITY -->
   <style>
-    /* --- ОСНОВНОЙ CSS (ДИЗАЙН) --- */
+    /* --- MAIN CSS --- */
     :root {
       /* Dark Theme (Default) */
       --bg-color: #000000;
@@ -18,19 +20,36 @@
       --text-main: #ffffff;
       --text-muted: #888888;
       --border-color: #333333;
+      --accent-color: #ffffff;
       --hover-color: #222222;
+      --success-color: #4caf50;
       --error-color: #f44336;
       --font-main: 'Inter', system-ui, sans-serif;
       --radius: 4px;
+      
+      /* Shift Colors */
+      --shift-bg: #222;
+      --shift-text: #fff;
+      --weekend-bg: rgba(255, 255, 255, 0.05);
+      --weekend-text: #ff8a80;
+      --b-bg: #e3f2fd;
+      --b-text: #1565c0;
     }
 
+    /* Light Theme */
     body.light-theme {
       --bg-color: #f5f5f5;
       --card-bg: #ffffff;
       --text-main: #000000;
       --text-muted: #666666;
       --border-color: #dddddd;
+      --accent-color: #000000;
       --hover-color: #eeeeee;
+      
+      --shift-bg: #eee;
+      --shift-text: #000;
+      --weekend-bg: rgba(255, 0, 0, 0.05);
+      --weekend-text: #d32f2f;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; outline: none; }
@@ -40,12 +59,13 @@
       color: var(--text-main);
       font-family: var(--font-main);
       min-height: 100vh;
+      line-height: 1.5;
       display: flex;
       flex-direction: column;
       transition: background-color 0.3s, color 0.3s;
     }
 
-    /* Контейнеры */
+    /* Helper Classes */
     .container {
       max-width: 1200px;
       margin: 0 auto;
@@ -53,24 +73,29 @@
       width: 100%;
     }
 
-    /* Экран входа */
+    /* Login Styles */
     .login-card { 
         max-width: 400px; 
         text-align: center; 
         margin: auto; 
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        height: 100vh;
     }
     .logo { 
         font-size: 48px; font-weight: 800; margin-bottom: 20px; 
-        background: linear-gradient(45deg, #fff, #888); 
+        background: linear-gradient(45deg, var(--text-main), var(--text-muted)); 
         -webkit-background-clip: text; 
         -webkit-text-fill-color: transparent; 
     }
+    .password-wrapper { position: relative; width: 100%; margin-bottom: 15px; }
+    .password-toggle {
+      position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+      cursor: pointer; opacity: 0.6; display: flex; align-items: center;
+      z-index: 2;
+      pointer-events: auto;
+    }
+    .password-toggle:hover { opacity: 1; }
+    .password-toggle svg { width: 20px; height: 20px; fill: var(--text-muted); }
 
-    /* Элементы управления */
+    /* Inputs & Buttons */
     .input-field {
       width: 100%;
       background: var(--card-bg);
@@ -80,8 +105,14 @@
       font-size: 16px;
       margin-bottom: 10px;
       border-radius: var(--radius);
+      transition: border-color 0.2s;
     }
-    
+    .input-field:focus { border-color: var(--text-main); }
+
+    button, select, input[type="button"], input[type="submit"] {
+       cursor: pointer;
+    }
+
     .btn {
       background: transparent;
       color: var(--text-main);
@@ -91,18 +122,109 @@
       font-size: 14px;
       text-transform: uppercase;
       letter-spacing: 1px;
-      border-radius: var(--radius);
       transition: all 0.2s;
+      display: inline-flex; align-items: center; justify-content: center;
+      user-select: none;
+      border-radius: var(--radius);
     }
+    .btn:active { transform: translateY(1px); }
     .btn:hover { background: var(--text-main); color: var(--bg-color); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-primary { background: var(--text-main); color: var(--bg-color); font-weight: 600; }
+    .btn-primary:hover { opacity: 0.9; }
     .btn-sm { padding: 5px 10px; font-size: 12px; }
 
-    /* Хедер */
+    /* Header & Layout */
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; }
-    
-    /* Табы */
-    .tabs { display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 1px solid var(--border-color); overflow-x: auto; }
+    h1 { font-size: 32px; letter-spacing: 4px; font-weight: 300; margin: 0; }
+
+    .profile-menu-container { position: relative; }
+
+    .profile-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 10px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s;
+      border-radius: var(--radius);
+    }
+    .profile-btn:hover { background: var(--hover-color); border-color: var(--border-color); }
+    .profile-avatar {
+      width: 32px; height: 32px; border-radius: 50%; background: #222; display: grid; place-items: center; overflow: hidden;
+    }
+    .profile-avatar-text { 
+      font-weight:800; color:#fff; font-size:13px; letter-spacing:0; text-transform:uppercase; line-height:1;
+      border: 1px solid var(--border-color); box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      background: linear-gradient(135deg, #2a2a2a, #0f0f0f);
+    }
+    .profile-info { display: flex; flex-direction: column; text-align: right; }
+    .profile-name { font-weight: 600; font-size: 14px; }
+    .profile-role { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px;}
+
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      min-width: 200px;
+      z-index: 1000;
+      margin-top: 5px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      border-radius: var(--radius);
+    }
+    .menu-item {
+      display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px 15px;
+      background: none; border: none; color: var(--text-main); cursor: pointer; border-bottom: 1px solid var(--border-color);
+      font-size: 14px;
+    }
+    .menu-item:last-child { border-bottom: none; }
+    .menu-item:hover { background: var(--hover-color); }
+
+    /* Modal Overlay - kept separately to avoid conflict with above replacement */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8); z-index: 2000;
+      display: none; align-items: center; justify-content: center;
+      backdrop-filter: blur(5px); /* Modern blur effect */
+    }
+    /* Modal - Enhanced Aesthetics */
+    .modal {
+      background: var(--bg-color); 
+      border: 1px solid var(--border-color);
+      padding: 30px; 
+      width: 100%; 
+      max-width: 400px;
+      position: relative;
+      border-radius: 12px; /* Softer corners */
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6); /* Deeper shadow */
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .modal h3 {
+        font-weight: 300;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-align: center;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 15px;
+        margin-bottom: 5px;
+    }
+    .close-modal { 
+        position: absolute; top: 15px; right: 20px; 
+        cursor: pointer; font-size: 24px; color: var(--text-muted); 
+        transition: color 0.2s;
+    }
+    .close-modal:hover { color: var(--error-color); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 10px; margin-bottom: 30px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
     .tab {
       padding: 10px 20px;
       background: transparent;
@@ -111,195 +233,535 @@
       cursor: pointer;
       font-size: 14px;
       text-transform: uppercase;
+      letter-spacing: 1px;
       border-bottom: 2px solid transparent;
+      transition: all 0.2s;
     }
+    .tab:hover { color: var(--text-main); }
     .tab.active { color: var(--text-main); border-bottom-color: var(--text-main); }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
 
+    .tab-content { display: none; animation: fadeIn 0.3s ease; }
+    .tab-content.active { display: block; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Таблицы */
+    /* Tables */
+    .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
     th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
-    th { color: var(--text-muted); text-transform: uppercase; font-size: 12px; }
+    th { color: var(--text-muted); font-weight: 400; text-transform: uppercase; font-size: 12px; }
 
-    /* Календарь */
-    .cal-header { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
+    /* Schedule Specific */
+    .schedule-switch { margin-bottom: 20px; display: flex; gap: 10px; }
+    .schedule-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .month-nav { display: flex; align-items: center; }
+
+    .schedule-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: center;
+      border: 1px solid var(--border-color);
+    }
+    .schedule-table th, .schedule-table td {
+      border: 1px solid var(--border-color);
+      padding: 4px;
+      min-width: 35px; /* Немного шире для мобильных */
+      height: 35px;
+      vertical-align: middle;
+    }
+    .schedule-table th {
+      background: var(--card-bg);
+      color: var(--text-main);
+      font-weight: 600;
+    }
+    .schedule-table .sticky-col {
+      position: sticky; left: 0; background: var(--bg-color); z-index: 2;
+      text-align: left;
+      font-weight: 600;
+      min-width: 120px;
+      border-right: 2px solid var(--border-color);
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
+    .schedule-table .weekend {
+      background: var(--weekend-bg);
+      color: var(--weekend-text);
+    }
+
+    /* Shift Cells */
+    .cell-input {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      color: inherit;
+      text-align: center;
+      font-weight: bold;
+      cursor: pointer;
+      appearance: none;
+      font-size: 11px;
+      padding: 0;
+      display: block;
+    }
+    .cell-input:focus { background: var(--hover-color); outline: none; }
+
+    .cell-b { background: var(--b-bg) !important; color: var(--b-text) !important; font-weight: 800; }
+    .cell-work { color: var(--text-main); font-weight: 600; }
+
+    /* Legend */
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+      font-size: 12px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 20px;
+    }
+    .legend-item { display: flex; gap: 10px; align-items: center; }
+    .legend-key { 
+      font-weight: bold; width: 24px; height: 24px; 
+      display: flex; align-items: center; justify-content: center; 
+      border: 1px solid var(--border-color); border-radius: 4px;
+    }
+    .legend-key.key-b { background: var(--b-bg); color: var(--b-text); }
+
+    /* --- CALENDAR CSS --- */
+    .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .cal-title { font-weight: 300; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
+    .cal-nav { display: flex; gap: 10px; }
+    .cal-btn { background: transparent; color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 12px; cursor: pointer; font-size: 14px; border-radius: var(--radius); }
+    .cal-btn:hover { background: var(--text-main); color: var(--bg-color); }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border-color); border: 1px solid var(--border-color); }
-    .cal-dow { text-align: center; color: var(--text-muted); padding: 10px; background: var(--card-bg); font-size: 12px; }
+    .cal-dow { text-align: center; color: var(--text-muted); padding: 15px 5px; font-size: 10px; text-transform: uppercase; background: var(--card-bg); }
+
+    /* Квадратики календаря - Улучшенный дизайн */
     .cal-day { 
-      min-height: 100px; background: var(--card-bg); padding: 10px; 
-      display: flex; flex-direction: column; cursor: pointer;
+      min-height: 100px; 
+      background: var(--card-bg); 
+      padding: 10px; 
+      display: flex; 
+      flex-direction: column; 
+      position: relative;
+      transition: all 0.3s ease;
+      cursor: pointer;
     }
-    .cal-day:hover { background: var(--hover-color); }
-    .cal-day.today { border: 1px solid var(--text-main); }
+    .cal-day:hover { 
+      background: var(--hover-color); 
+      z-index: 2;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      transform: translateY(-2px);
+    }
+    .cal-day.today { 
+        background: var(--hover-color); 
+        border: 1px solid var(--text-main); 
+    }
+    .cal-day.today::after { 
+        content: '★'; 
+        position: absolute; top: 5px; right: 5px; 
+        font-size: 10px; color: var(--accent-color); 
+    }
     .cal-day.other { opacity: 0.3; pointer-events: none; }
-    .daynum { font-weight: bold; margin-bottom: 5px; }
+
+    .daynum { font-weight: 600; font-size: 14px; color: var(--text-muted); margin-bottom: 10px; }
+
+    /* Маркер смены */
     .shift-marker { 
-        background: var(--text-main); color: var(--bg-color); 
-        padding: 4px; border-radius: 4px; font-size: 11px; text-align: center; margin-top: auto; 
+      font-size: 11px; 
+      color: var(--bg-color); 
+      background: var(--text-main);
+      padding: 6px 8px;
+      margin-top: auto;
+      border-radius: 4px;
+      text-align: center;
+      font-weight: 700;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
 
-    /* Админка */
-    .admin-panel { border: 1px solid var(--border-color); padding: 20px; margin-bottom: 20px; border-radius: var(--radius); }
-    
-    /* Профиль меню */
-    .profile-menu { position: relative; display: inline-block; }
-    .dropdown {
-        display: none; position: absolute; right: 0; top: 100%;
-        background: var(--card-bg); border: 1px solid var(--border-color);
-        min-width: 160px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    /* Merch Grid */
+    .merch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+    .photo-card { height: 200px; background-size: cover; background-position: center; border: 1px solid var(--border-color); position: relative; border-radius: var(--radius); overflow: hidden; }
+    .photo-title { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); padding: 10px; font-size: 12px; }
+
+    /* Loader */
+    .loader { text-align: center; padding: 20px; color: var(--text-muted); }
+
+    /* Mobile Adjustments */
+    @media (max-width: 768px) {
+        .header { flex-direction: column; align-items: flex-start; gap: 20px; }
+        .actions { width: 100%; display: flex; justify-content: flex-end; }
+        .tabs { overflow-x: auto; white-space: nowrap; flex-wrap: nowrap; padding-bottom: 5px; }
+        .schedule-table th, .schedule-table td { min-width: 30px; font-size: 10px; padding: 2px; }
+        .cal-day { min-height: 80px; padding: 5px; }
+        .shift-marker { font-size: 9px; padding: 2px 4px; }
+        .modal { width: 95%; padding: 20px; }
     }
-    .dropdown button { width: 100%; text-align: left; border: none; padding: 12px; background: none; color: var(--text-main); cursor: pointer; }
-    .dropdown button:hover { background: var(--hover-color); }
   </style>
+
+  <!-- SCRIPTS -->
+  <!-- 1. External Deps -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-  <div id="login-view" class="login-card">
+  <!-- ==================== LOGIN VIEW ==================== -->
+  <div id="login-view" class="container login-card" style="display:flex; height: 100vh; flex-direction: column; justify-content: center;">
     <div class="logo">A | X</div>
-    <h2 style="margin-bottom: 20px;">Вход</h2>
-    <input type="text" id="loginEmail" placeholder="Логин (Email)" class="input-field">
-    <input type="password" id="loginPassword" placeholder="Пароль" class="input-field">
-    <button class="btn btn-primary" id="btnLogin" style="width: 100%; margin-top: 10px;">Войти</button>
-    <div id="loginErrorMsg" style="color: var(--error-color); margin-top: 15px; height: 20px;"></div>
+    <h2>Вход в систему</h2>
+    <p style="margin-bottom: 20px; color: #666;">Введите данные сотрудника</p>
+    
+    <input type="text" id="loginEmail" placeholder="Логин" class="input-field">
+    
+    <div class="password-wrapper">
+      <input type="password" id="loginPassword" placeholder="Пароль" class="input-field" style="margin-bottom: 0;">
+      <div class="password-toggle" id="togglePassword">
+        <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+      </div>
+    </div>
+    
+    <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" id="btnLogin">Войти</button>
+    <div id="loginErrorMsg" style="color: #f44336; margin-top: 15px; font-size: 14px; min-height: 20px;"></div>
   </div>
 
+  <!-- ==================== APP VIEW ==================== -->
   <div id="app-view" class="container" style="display:none;">
     <div class="header">
-      <h1>A | X SYSTEM</h1>
-      <div class="profile-menu">
-        <button class="btn" id="profileBtn">
-            <span id="headerName">...</span>
-        </button>
-        <div class="dropdown" id="profileDropdown">
-            <button id="themeBtn">🌓 Тема</button>
-            <button id="logoutBtn" style="color: var(--error-color);">Выйти</button>
+      <div class="header-left">
+        <h1>A | X</h1>
+      </div>
+      
+      <div class="actions">
+        <div class="profile-menu-container">
+          <button class="profile-btn" id="profileBtn">
+            <div class="profile-info">
+               <span class="profile-name" id="headerLogin">...</span> 
+               <span class="profile-role" id="headerRole">...</span>
+            </div>
+            <div class="profile-avatar profile-avatar-text" id="headerAvatar" aria-label="Avatar"></div>
+          </button>
+          
+          <div class="dropdown-menu" id="profileMenu">
+            <button id="themeBtn" class="menu-item">
+               <span>🌓</span> Сменить тему
+            </button>
+            <button id="changePassBtn" class="menu-item">
+               <span>🔒</span> Сменить пароль
+            </button>
+            <button id="logoutBtn" class="menu-item" style="color: #f44336;">
+               <span>🚪</span> Выйти
+            </button>
+          </div>
         </div>
+      </div>
+    </div>
+
+    <!-- MODAL: CHANGE PASSWORD -->
+    <div id="modalChangePass" class="modal-overlay">
+      <div class="modal">
+        <span class="close-modal" onclick="document.getElementById('modalChangePass').style.display='none'">&times;</span>
+        <h3 style="margin-bottom:20px;">Смена пароля</h3>
+        <input type="password" id="oldPass" placeholder="Старый пароль" class="input-field">
+        <input type="password" id="newPass" placeholder="Новый пароль" class="input-field">
+        <button class="btn btn-primary" id="btnSavePass" style="width:100%">Сохранить</button>
+      </div>
+    </div>
+    <!-- MODAL: INFO -->
+    <div id="modalInfo" class="modal-overlay">
+      <div class="modal" style="max-width:800px">
+        <span class="close-modal" onclick="closeModal('modalInfo')">&times;</span>
+        <h3 id="modalTitle"></h3>
+        <div id="modalBody" style="display:block; max-height:70vh; overflow:auto"></div>
       </div>
     </div>
 
     <div class="tabs">
       <button class="tab active" data-tab="schedule">График</button>
+      <button class="tab" data-tab="tab-1s">1С</button>
       <button class="tab" data-tab="merch">Мерч</button>
-      <button class="tab" data-tab="1s">1С</button>
-      <button class="tab" data-tab="admin" id="adminTabBtn" style="display:none;">Сотрудники</button>
+      <button class="tab" data-tab="operations">Операции</button>
+      <button class="tab" data-tab="admin" id="adminTab" style="display:none">Сотрудники</button>
     </div>
 
+    <!-- CONTENT: SCHEDULE -->
     <div class="tab-content active" id="schedule">
-       <div id="calendar-wrapper"></div>
-    </div>
-
-    <div class="tab-content" id="merch">
-        <h2>Мерчандайзинг</h2>
-        <p style="color: #666; margin-top: 10px;">Загрузите фото отчетов здесь.</p>
-        <button class="btn btn-sm" style="margin-top: 10px;">+ Добавить фото</button>
-    </div>
-
-    <div class="tab-content" id="1s">
-        <h2>База знаний 1С</h2>
-        <div style="margin-top: 20px;">
-            <input type="text" class="input-field" placeholder="Поиск инструкции...">
-        </div>
-    </div>
-
-    <div class="tab-content" id="admin">
-      <h2>Управление персоналом</h2>
+      <div class="schedule-switch">
+        <button class="btn btn-sm active" id="viewMySched">Мой</button>
+        <button class="btn btn-sm" id="viewTeamSched">Общий</button>
+      </div>
       
-      <div class="admin-panel">
-        <h3>Новый сотрудник</h3>
-        <div style="display: grid; gap: 10px; margin-top: 15px;">
-            <input type="text" id="newUserName" placeholder="ФИО" class="input-field">
-            <input type="text" id="newUserLogin" placeholder="Логин" class="input-field">
-            <input type="text" id="newUserPass" placeholder="Пароль" class="input-field">
-            <select id="newUserRole" class="input-field">
-                <option value="seller">Продавец</option>
-                <option value="senior_seller">Старший продавец</option>
-                <option value="director">Директор</option>
-            </select>
-            <button class="btn btn-primary" id="btnCreateUser">Создать сотрудника</button>
-        </div>
+      <div id="myScheduleView">
+        <div id="calendar-wrapper"></div>
       </div>
 
+      <div id="teamScheduleView" style="display:none;">
+        <div id="schedule-manager"></div>
+      </div>
+    </div>
+
+    <!-- CONTENT: OPERATIONS -->
+    <div class="tab-content" id="operations">
+      <h2>Операции</h2>
+      <p>Раздел в разработке</p>
+    </div>
+
+    <!-- CONTENT: 1S -->
+    <div class="tab-content" id="tab-1s">
+      <h2>Инструкции 1С</h2>
+      <input type="text" class="input-field search-input" placeholder="Поиск инструкций...">
+      <div class="list-group" style="margin-top: 20px;"></div>
+      <div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
+        <button class="btn btn-sm" id="btnAddManual">Добавить инструкцию</button>
+        <input type="file" id="uploadManualInput" hidden accept="image/*,video/*">
+      </div>
+    </div>
+
+    <!-- CONTENT: MERCH -->
+    <div class="tab-content" id="merch">
+      <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+        <h2>Мерчандайзинг</h2>
+        <button class="btn btn-sm" id="btnUploadMerch">Добавить медиа</button>
+        <input type="file" id="uploadMerchInput" hidden accept="image/*,video/*">
+      </div>
+      <div class="merch-grid" id="merchGrid"></div>
+    </div>
+
+    <!-- CONTENT: ADMIN -->
+    <div class="tab-content" id="admin">
+      <h2>Управление сотрудниками</h2>
+      <div style="margin-bottom: 20px; padding: 20px; border: 1px solid var(--border-color);">
+        <h3>Новый сотрудник</h3>
+        <input type="text" id="newUserName" placeholder="ФИО" class="input-field">
+        <input type="text" id="newUserEmail" placeholder="Логин" class="input-field">
+        <input type="text" id="newUserPass" placeholder="Пароль" class="input-field">
+        <select id="newUserRole" class="input-field">
+          <option value="seller">Продавец</option>
+          <option value="senior_seller">Старший продавец</option>
+          <option value="director">Директор</option>
+        </select>
+        <button class="btn btn-primary" id="btnCreateUser">Создать</button>
+      </div>
+      
       <table id="usersTable">
         <thead>
-            <tr>
-                <th>Имя</th>
-                <th>Логин</th>
-                <th>Роль</th>
-                <th>Действие</th>
-            </tr>
+          <tr>
+            <th>Сотрудник</th>
+            <th>Роль</th>
+            <th>Действия</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
-
   </div>
 
+  <!-- INLINED SCRIPTS FOR STABILITY -->
   <script>
-    // --- 1. НАСТРОЙКИ ---
+    window.onerror = function(msg, url, line, col, error) {
+       // Suppress benign resize observer errors
+       if (msg.includes('ResizeObserver')) return;
+       // Alert critical errors
+       alert('System Error: ' + msg + '\nLine: ' + line);
+       console.error(error);
+    };
+
+    // --- 1. SUPABASE CONFIG ---
     const SUPABASE_URL = 'https://uuhsjusmhmmjceujzoiw.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1aHNqdXNtaG1tamNldWp6b2l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MDU0MTUsImV4cCI6MjA4MTE4MTQxNX0.zaOtLcZGoNV77AiLrbODv3gIamlHWh8QwbBdWeOfJLw';
-    
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1aHNqdXNtaG1tamNldWp6b2l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MDU0MTUsImV4cCI6MjA4MTE4MTQxNX0.zaOtLcZGoNV77AiLrbODv3gIamlHWh8QwbBdWeOfJLw';
     let supabase = null;
-    let currentUser = null;
-    let globalShiftTypes = [];
-
-    // --- 2. ИНИЦИАЛИЗАЦИЯ SUPABASE ---
     try {
-        if (window.supabase) {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        }
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
     } catch (e) {
-        console.error('Ошибка Supabase:', e);
+      console.warn('Supabase init failed:', e);
     }
 
-    // --- 3. ФУНКЦИИ API ---
-    
-    // Вход
+    // --- 2. GLOBAL STATE ---
+    let currentUser = null;
+    let globalEmployees = [];
+    let globalShiftTypes = [];
+    let globalMerch = [];
+
+    // --- 3. HELPER FUNCTIONS (API) ---
+    async function preloadGlobalData() {
+      if (!supabase) { globalEmployees = []; globalShiftTypes = []; return; }
+       // Parallel fetch
+       const [emp, shifts] = await Promise.all([
+         supabase.from('employees').select('*').order('full_name'),
+         supabase.from('shifts').select('*').order('id')
+       ]);
+       globalEmployees = emp.data || [];
+       globalShiftTypes = shifts.data || [];
+    }
+
     async function loginUser(login, password) {
-        if (!supabase) throw new Error("Нет соединения с базой");
-        const { data, error } = await supabase
-            .from('employees')
-            .select('*')
-            .eq('login', login)
-            .eq('password', password) // В реальности лучше хешировать
-            .single();
-        
-        if (error || !data) throw new Error("Неверный логин или пароль");
-        localStorage.setItem('ax_user', JSON.stringify(data));
-        return data;
+      if (!supabase) throw new Error('Нет соединения с сервером');
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('login', login)
+        .eq('password', password)
+        .single();
+
+      if (error || !data) throw new Error('Неверный логин или пароль');
+      localStorage.setItem('ax_user', JSON.stringify(data));
+      return data;
     }
 
-    // Создание сотрудника
-    async function createEmployee(payload) {
-        return await supabase.from('employees').insert(payload);
+    function getCurrentUser() {
+      const userStr = localStorage.getItem('ax_user');
+      return userStr ? JSON.parse(userStr) : null;
     }
 
-    // Получение списка сотрудников
+    function logoutUser() {
+      localStorage.removeItem('ax_user');
+      location.reload();
+    }
+
     async function getAllEmployees() {
-        const { data } = await supabase.from('employees').select('*').order('full_name');
-        return data || [];
+      if (globalEmployees.length > 0) return globalEmployees;
+      if (!supabase) { globalEmployees = []; return globalEmployees; }
+      const { data } = await supabase.from('employees').select('*').order('full_name');
+      globalEmployees = data || [];
+      return globalEmployees;
     }
 
-    // Удаление
+    function sortEmployees(list) {
+      const rank = { director: 0, senior_seller: 1, seller: 2 };
+      return [...(list || [])].sort((a, b) => {
+        const ra = rank[a.role] ?? 99;
+        const rb = rank[b.role] ?? 99;
+        if (ra !== rb) return ra - rb;
+        const an = a.full_name || a.login || '';
+        const bn = b.full_name || b.login || '';
+        return an.localeCompare(bn, 'ru', { sensitivity: 'base' });
+      });
+    }
+
+    async function createEmployee(data) {
+      if (!supabase) return { error: { message: 'Нет соединения' } };
+      const res = await supabase.from('employees').insert(data);
+      if (!res.error) {
+         // Refresh cache
+         const { data: newData } = await supabase.from('employees').select('*').order('full_name');
+         globalEmployees = newData || [];
+      }
+      return res;
+    }
+
     async function deleteEmployee(id) {
-        return await supabase.from('employees').delete().eq('id', id);
+      if (!supabase) return { error: { message: 'Нет соединения' } };
+      const res = await supabase.from('employees').delete().eq('id', id);
+      if (!res.error) {
+         globalEmployees = globalEmployees.filter(e => e.id !== id);
+      }
+      return res;
     }
 
-    // Загрузка типов смен (для календаря)
-    async function preloadShifts() {
-        const { data } = await supabase.from('shifts').select('*');
-        globalShiftTypes = data || [];
+    async function getShiftTypes() {
+      // Always fetch fresh to ensure we have latest added shifts
+      if (!supabase) { globalShiftTypes = []; return globalShiftTypes; }
+      const { data } = await supabase.from('shifts').select('*').order('id');
+      globalShiftTypes = data || [];
+      return globalShiftTypes;
     }
 
-    // --- 4. КЛАСС КАЛЕНДАРЯ ---
+    async function createShiftType(shiftData) {
+      if (!supabase) return { error: { message: 'Нет соединения' } };
+      // shiftData: { title, start_time, end_time }
+      const res = await supabase.from('shifts').insert(shiftData);
+      if (!res.error) {
+         // Refresh cache
+         await getShiftTypes();
+      }
+      return res;
+    }
+
+    async function getMerchItems() {
+      if (!supabase) return [];
+      const { data } = await supabase.from('merch_items').select('*');
+      return data || [];
+    }
+
+    async function createMerchItem(title, url, description) {
+      if (!supabase) return { error: { message: 'Нет соединения' } };
+      // Сначала пробуем с description; при ошибке — без него
+      let res = await supabase.from('merch_items').insert({ title, image_url: url, description });
+      if (res.error) {
+        const fallbackTitle = description ? `${title} — ${description}` : title;
+        res = await supabase.from('merch_items').insert({ title: fallbackTitle, image_url: url });
+      }
+      return res;
+    }
+
+    async function uploadFile(bucket, file) {
+      if (!supabase) throw new Error('Нет соединения');
+      const ext = file.name.split('.').pop();
+      const path = `${Math.random()}.${ext}`;
+      await supabase.storage.from(bucket).upload(path, file);
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      return data.publicUrl;
+    }
+
+    async function uploadMedia(file) {
+      // Пытаемся последовательно: photos → Profile → public
+      const buckets = ['photos', 'Profile', 'public'];
+      let lastErr = null;
+      for (const b of buckets) {
+        try {
+          const url = await uploadFile(b, file);
+          return url;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr || new Error('Загрузка не удалась');
+    }
+
+    function computeInitials(nameOrLogin) {
+      const raw = String(nameOrLogin || '').trim();
+      if (!raw) return 'UU';
+      const parts = raw.split(/[\s-]+/).filter(Boolean);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      return raw.slice(0, 2).toUpperCase();
+    }
+
+    // --- SEED SHIFTS ---
+    const SHIFTS_DATA = [
+      // 1️⃣ СМЕНЫ ДИРЕКТОРА (8ч)
+      { id: 1, title: '10:00–19:00', start_time: '10:00', end_time: '19:00', break_start: '14:00', break_end: '15:00', work_hours: 8 },
+      { id: 2, title: '13:00–22:00', start_time: '13:00', end_time: '22:00', break_start: '15:00', break_end: '16:00', work_hours: 8 },
+
+      // 2️⃣ СМЕНЫ ПРОДАВЦОВ 0.75 (6ч)
+      { id: 3, title: '10:00–17:00', start_time: '10:00', end_time: '17:00', break_start: '13:00', break_end: '14:00', work_hours: 6 },
+      { id: 4, title: '12:00–19:00', start_time: '12:00', end_time: '19:00', break_start: '15:00', break_end: '16:00', work_hours: 6 },
+      { id: 5, title: '13:00–20:00', start_time: '13:00', end_time: '20:00', break_start: '16:00', break_end: '17:00', work_hours: 6 },
+      { id: 6, title: '14:00–21:00', start_time: '14:00', end_time: '21:00', break_start: '17:00', break_end: '18:00', work_hours: 6 },
+      { id: 7, title: '15:00–22:00', start_time: '15:00', end_time: '22:00', break_start: '18:00', break_end: '19:00', work_hours: 6 },
+
+      // 3️⃣ СМЕНЫ ПРОДАВЦОВ 0.5 (5ч)
+      { id: 8, title: '10:00–15:00', start_time: '10:00', end_time: '15:00', break_start: '12:00', break_end: '13:00', work_hours: 5 },
+      { id: 9, title: '12:00–17:00', start_time: '12:00', end_time: '17:00', break_start: '14:00', break_end: '15:00', work_hours: 5 },
+      { id: 10, title: '13:00–18:00', start_time: '13:00', end_time: '18:00', break_start: '15:00', break_end: '16:00', work_hours: 5 },
+      { id: 11, title: '15:00–20:00', start_time: '15:00', end_time: '20:00', break_start: '17:00', break_end: '18:00', work_hours: 5 },
+      { id: 12, title: '17:00–22:00', start_time: '17:00', end_time: '22:00', break_start: '19:00', break_end: '20:00', work_hours: 5 }
+    ];
+
+    async function seedShifts() {
+      if (!supabase) { console.error('Supabase not init'); return; }
+      // Quietly seed/update shifts
+      for (const shift of SHIFTS_DATA) {
+        await supabase.from('shifts').upsert(shift);
+      }
+    }
+
+    // --- 4. CLASSES ---
     class Calendar {
       constructor(containerId) {
         this.container = document.getElementById(containerId);
         this.cursor = new Date();
-        this.shifts = new Map();
+        this.shifts = new Map(); 
         this.init();
       }
 
@@ -310,27 +772,25 @@
       }
 
       async loadMyShifts() {
-        if (!supabase || !currentUser) return;
-        
+        if (!supabase) { this.shifts.clear(); this.render(); return; }
+        if (!currentUser) return;
         const y = this.cursor.getFullYear();
         const m = this.cursor.getMonth() + 1;
-        // Формат YYYY-MM для фильтрации (зависит от вашей структуры БД, здесь упрощенно)
-        // Если в БД поле 'date' типа date, фильтруем диапазоном:
-        const startStr = `${y}-${String(m).padStart(2,'0')}-01`;
-        const endStr = `${y}-${String(m).padStart(2,'0')}-31`;
+        const monthStr = `${y}-${String(m).padStart(2, '0')}`;
 
         const { data } = await supabase
           .from('schedule')
           .select('date, shift_id')
           .eq('user_id', currentUser.id)
-          .gte('date', startStr)
-          .lte('date', endStr);
+          .eq('month', monthStr);
 
         this.shifts.clear();
         if (data) {
           data.forEach(item => {
-            const s = globalShiftTypes.find(x => String(x.id) === String(item.shift_id));
-            if (s) this.shifts.set(item.date, s);
+            if (item.shift_id) {
+              const s = (globalShiftTypes || []).find(x => String(x.id) === String(item.shift_id));
+              if (s) this.shifts.set(item.date, s);
+            }
           });
         }
         this.render();
@@ -338,22 +798,25 @@
 
       renderStructure() {
         this.container.innerHTML = `
-          <div class="cal-header">
-            <div class="cal-title" id="calTitle" style="font-size: 20px; text-transform: uppercase;"></div>
-            <div style="display:flex; gap:10px;">
-              <button class="btn btn-sm" id="calPrev">←</button>
-              <button class="btn btn-sm" id="calToday">Сегодня</button>
-              <button class="btn btn-sm" id="calNext">→</button>
+          <div class="card calendar-card" style="background:transparent; border:none; padding:0;">
+            <div class="cal-header">
+              <div class="cal-title" id="calTitle"></div>
+              <div class="cal-nav">
+                <button class="cal-btn" id="calPrev">←</button>
+                <button class="cal-btn" id="calToday">Сегодня</button>
+                <button class="cal-btn" id="calNext">→</button>
+              </div>
             </div>
+            <div class="cal-grid" id="calDow"></div>
+            <div class="cal-grid" id="calGrid"></div>
           </div>
-          <div class="cal-grid" id="calDow"></div>
-          <div class="cal-grid" id="calGrid"></div>
         `;
+        const dowRow = document.getElementById('calDow');
         ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(d => {
           const el = document.createElement('div');
           el.className = 'cal-dow';
           el.textContent = d;
-          document.getElementById('calDow').appendChild(el);
+          dowRow.appendChild(el);
         });
       }
 
@@ -367,187 +830,949 @@
         const grid = document.getElementById('calGrid');
         const title = document.getElementById('calTitle');
         grid.innerHTML = '';
-        
         const y = this.cursor.getFullYear();
         const m = this.cursor.getMonth();
-        const formatter = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' });
-        title.textContent = formatter.format(this.cursor);
+        title.textContent = new Date(y, m, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        
+        const firstDay = new Date(y, m, 1);
+        let startOffset = firstDay.getDay() || 7;
+        startOffset -= 1;
 
-        // Логика дней
-        const firstDay = new Date(y, m, 1).getDay();
-        const offset = firstDay === 0 ? 6 : firstDay - 1; // Понедельник = 0
-        const daysInMonth = new Date(y, m + 1, 0).getDate();
-
-        // Пустые ячейки до начала месяца
-        for (let i = 0; i < offset; i++) {
-            const empty = document.createElement('div');
-            empty.className = 'cal-day other';
-            grid.appendChild(empty);
+        for(let i=0; i<startOffset; i++) {
+          const el = document.createElement('div'); el.className = 'cal-day other'; grid.appendChild(el);
         }
 
-        const today = new Date();
-        for (let d = 1; d <= daysInMonth; d++) {
-            const cell = document.createElement('div');
-            cell.className = 'cal-day';
-            
-            // Подсветка сегодня
-            if (y === today.getFullYear() && m === today.getMonth() && d === today.getDate()) {
-                cell.classList.add('today');
-            }
+        const daysInMonth = new Date(y, m+1, 0).getDate();
+        const todayStr = new Date().toISOString().slice(0, 10);
 
-            const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            
-            let html = `<div class="daynum">${d}</div>`;
-            
-            if (this.shifts.has(dateStr)) {
-                const shift = this.shifts.get(dateStr);
-                html += `<div class="shift-marker">${shift.title || shift.start_time}</div>`;
-            }
+        for(let d=1; d<=daysInMonth; d++) {
+          const dateObj = new Date(y, m, d);
+          const dateKey = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().slice(0, 10);
+          
+          const cell = document.createElement('div');
+          cell.className = 'cal-day';
+          if (dateKey === todayStr) cell.classList.add('today');
 
-            cell.innerHTML = html;
-            grid.appendChild(cell);
+          const num = document.createElement('div'); num.className = 'daynum'; num.textContent = d;
+          cell.appendChild(num);
+
+          if (this.shifts.has(dateKey)) {
+            const shift = this.shifts.get(dateKey);
+            const marker = document.createElement('div');
+            marker.className = 'shift-marker';
+            // Используем текст смены (10:00-19:00)
+            marker.textContent = `${shift.start_time.slice(0,5)} - ${shift.end_time.slice(0,5)}`;
+            // Подсветка "рабочего" стиля
+            cell.appendChild(marker);
+          }
+          grid.appendChild(cell);
         }
       }
     }
 
-    // --- 5. ГЛАВНАЯ ЛОГИКА ---
-    document.addEventListener('DOMContentLoaded', async () => {
+    class ScheduleManager {
+      constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        this.currentDate = new Date();
+        this.employees = [];
+        this.shiftTypes = [];
+        this.scheduleData = [];
+        this.editMode = false;
+        this.roleFilter = 'all';
+      }
+
+      async init() {
+        this.container.innerHTML = '<div class="loader">Загрузка...</div>';
         
-        // 1. Проверка сессии
-        const savedUser = localStorage.getItem('ax_user');
-        if (savedUser) {
-            currentUser = JSON.parse(savedUser);
-            await showApp();
-        } else {
-            document.getElementById('login-view').style.display = 'flex';
-        }
+        // Use global cached data
+        this.employees = sortEmployees(await getAllEmployees());
+        this.shiftTypes = await getShiftTypes();
+        
+        this.renderControls();
+        await this.loadMonthData();
+      }
 
-        // 2. Логин кнопка
-        document.getElementById('btnLogin').onclick = async () => {
-            const loginInput = document.getElementById('loginEmail').value;
-            const passInput = document.getElementById('loginPassword').value;
-            const errDiv = document.getElementById('loginErrorMsg');
+      renderControls() {
+        const y = this.currentDate.getFullYear();
+        const m = this.currentDate.getMonth();
+        const monthName = new Date(y, m, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+
+        this.container.innerHTML = `
+          <div class="schedule-controls">
+            <div class="month-nav">
+              <button id="schedPrev" class="btn btn-sm">←</button>
+              <h2 style="text-transform: capitalize; margin: 0 15px;">${monthName}</h2>
+              <button id="schedNext" class="btn btn-sm">→</button>
+            </div>
+            <div class="schedule-tools" style="display:flex;gap:10px;align-items:center;">
+              <select id="roleFilter" class="input-field" style="max-width:220px">
+                <option value="all">Все должности</option>
+                <option value="director">Директор</option>
+                <option value="senior_seller">Старший продавец</option>
+                <option value="seller">Продавец</option>
+              </select>
+              ${currentUser && currentUser.role === 'director' ? '<button id="toggleEditMode" class="btn btn-sm">Режим изменения: выкл</button>' : ''}
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="schedule-table" id="schedTable">
+              <thead id="schedHead"></thead>
+              <tbody id="schedBody"></tbody>
+              <tfoot id="schedFoot"></tfoot>
+            </table>
+          </div>
+          <div id="schedLegend" class="legend-grid"></div>
+        `;
+        document.getElementById('schedPrev').onclick = () => this.changeMonth(-1);
+        document.getElementById('schedNext').onclick = () => this.changeMonth(1);
+        const roleSel = document.getElementById('roleFilter');
+        if (roleSel) { roleSel.value = this.roleFilter; roleSel.onchange = () => { this.roleFilter = roleSel.value; this.renderTable(y, m); }; }
+        const editBtn = document.getElementById('toggleEditMode');
+        if (editBtn) { editBtn.onclick = () => { this.editMode = !this.editMode; editBtn.textContent = `Режим изменения: ${this.editMode ? 'вкл' : 'выкл'}`; this.renderTable(y, m); }; }
+        this.renderLegend();
+      }
+      
+      renderLegend() {
+        const leg = document.getElementById('schedLegend');
+        leg.innerHTML = '';
+        
+        // Define Groups
+        const groups = [
+            { title: 'Директор (1.0)', ids: [1, 2], color: '#ffeb3b', textColor: '#000' },
+            { title: 'Продавцы (0.75)', ids: [3, 4, 5, 6, 7], color: '#4caf50', textColor: '#fff' },
+            { title: 'Продавцы (0.5)', ids: [8, 9, 10, 11, 12], color: '#2196f3', textColor: '#fff' }
+        ];
+
+        groups.forEach(group => {
+            // Group Header
+            const header = document.createElement('div');
+            header.style.gridColumn = '1 / -1';
+            header.style.marginTop = '15px';
+            header.style.marginBottom = '5px';
+            header.style.fontSize = '12px';
+            header.style.fontWeight = 'bold';
+            header.style.color = 'var(--text-muted)';
+            header.style.borderBottom = '1px solid var(--border-color)';
+            header.textContent = group.title;
+            leg.appendChild(header);
+
+            // Filter shifts for this group
+            const groupShifts = this.shiftTypes.filter(s => group.ids.includes(s.id));
             
-            errDiv.textContent = 'Вход...';
-            
-            try {
-                currentUser = await loginUser(loginInput, passInput);
-                await showApp();
-            } catch (e) {
-                errDiv.textContent = e.message;
-            }
-        };
-
-        // 3. Выход
-        document.getElementById('logoutBtn').onclick = () => {
-            localStorage.removeItem('ax_user');
-            location.reload();
-        };
-
-        // 4. Меню профиля
-        document.getElementById('profileBtn').onclick = () => {
-            const dd = document.getElementById('profileDropdown');
-            dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
-        };
-
-        // 5. Переключение темы
-        document.getElementById('themeBtn').onclick = () => {
-            document.body.classList.toggle('light-theme');
-        };
-
-        // 6. Табы
-        document.querySelectorAll('.tab').forEach(t => {
-            t.onclick = () => {
-                document.querySelectorAll('.tab, .tab-content').forEach(el => el.classList.remove('active'));
-                t.classList.add('active');
-                document.getElementById(t.dataset.tab).classList.add('active');
-            }
+            groupShifts.forEach(s => {
+               const div = document.createElement('div');
+               div.className = 'legend-item';
+               div.innerHTML = `<div class="legend-key" style="border-color:${group.color}; color:${group.color}">${s.id}</div> 
+                                <span>${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}</span>`;
+               leg.appendChild(div);
+            });
         });
 
-        // 7. Создание сотрудника (АДМИН)
-        document.getElementById('btnCreateUser').onclick = async () => {
-            const name = document.getElementById('newUserName').value;
-            const login = document.getElementById('newUserLogin').value;
-            const pass = document.getElementById('newUserPass').value;
-            const role = document.getElementById('newUserRole').value;
-
-            if(!name || !login || !pass) return alert("Заполните все поля");
-
-            const { error } = await createEmployee({
-                full_name: name,
-                login: login,
-                password: pass,
-                role: role
+        // Output any other shifts not in groups (e.g. Cleaners or custom)
+        const knownIds = groups.flatMap(g => g.ids);
+        const others = this.shiftTypes.filter(s => !knownIds.includes(s.id));
+        
+        if (others.length > 0) {
+            const header = document.createElement('div');
+            header.style.gridColumn = '1 / -1';
+            header.style.marginTop = '15px';
+            header.style.borderBottom = '1px solid var(--border-color)';
+            header.textContent = 'Прочие';
+            leg.appendChild(header);
+            
+            others.forEach(s => {
+               const div = document.createElement('div');
+               div.className = 'legend-item';
+               div.innerHTML = `<div class="legend-key">${s.id}</div> <span>${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}</span>`;
+               leg.appendChild(div);
             });
+        }
 
-            if(error) alert("Ошибка: " + error.message);
-            else {
-                alert("Сотрудник добавлен!");
-                // Очистка полей
-                document.getElementById('newUserName').value = '';
-                document.getElementById('newUserLogin').value = '';
-                document.getElementById('newUserPass').value = '';
-                renderAdminTable();
+        // Добавим B - выходной
+        const headerB = document.createElement('div');
+        headerB.style.gridColumn = '1 / -1';
+        headerB.style.marginTop = '15px';
+        headerB.style.borderBottom = '1px solid var(--border-color)';
+        headerB.textContent = 'Обозначения';
+        leg.appendChild(headerB);
+
+        const divB = document.createElement('div');
+        divB.className = 'legend-item';
+        divB.innerHTML = `<div class="legend-key key-b">B</div> <span>Выходной</span>`;
+        leg.appendChild(divB);
+      }
+
+      changeMonth(delta) {
+        this.currentDate.setMonth(this.currentDate.getMonth() + delta);
+        this.renderControls();
+        this.loadMonthData();
+      }
+
+      async loadMonthData() {
+        const y = this.currentDate.getFullYear();
+        const m = this.currentDate.getMonth() + 1;
+        const monthStr = `${y}-${String(m).padStart(2, '0')}`;
+        if (!supabase) { this.scheduleData = []; this.renderTable(y, m - 1); return; }
+        const { data } = await supabase.from('schedule').select('*').eq('month', monthStr);
+        this.scheduleData = data || [];
+        this.renderTable(y, m - 1);
+      }
+
+      renderTable(year, month) {
+        const thead = document.getElementById('schedHead');
+        const tbody = document.getElementById('schedBody');
+        const tfoot = document.getElementById('schedFoot');
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+        let list = (this.roleFilter === 'all') ? this.employees : this.employees.filter(u => u.role === this.roleFilter);
+        list = sortEmployees(list);
+        
+        // --- HEADER ---
+        // Always render header to ensure dates are correct for the month
+        let headerHtml = '<tr><th rowspan="2">№</th><th rowspan="2" class="sticky-col">Фамилия И. О.</th><th rowspan="2">Должность</th>';
+        for (let d = 1; d <= daysInMonth; d++) {
+           const dateObj = new Date(year, month, d);
+           const dayName = dateObj.toLocaleDateString('ru-RU', { weekday: 'short' });
+           const isWeekend = (dayName === 'сб' || dayName === 'вс') ? 'weekend' : '';
+           headerHtml += `<th class="${isWeekend}">${d}</th>`;
+        }
+        headerHtml += '<th rowspan="2">Итого<br>часов</th><th rowspan="2">Вых</th></tr><tr>';
+        for (let d = 1; d <= daysInMonth; d++) {
+           const dateObj = new Date(year, month, d);
+           const dayName = dateObj.toLocaleDateString('ru-RU', { weekday: 'short' });
+           const isWeekend = (dayName === 'сб' || dayName === 'вс') ? 'weekend' : '';
+           headerHtml += `<th class="${isWeekend}" style="font-size:10px">${dayName}</th>`;
+        }
+        headerHtml += '</tr>';
+        thead.innerHTML = headerHtml;
+
+        // --- BODY ---
+        // Check if we can perform a smart update
+        // We need full rebuild if:
+        // 1. Employee list changed length
+        // 2. Month changed (different days count)
+        // 3. Table is empty
+        const shouldRebuild = tbody.children.length !== list.length || 
+                              tbody.dataset.month !== monthStr;
+        
+        tbody.dataset.month = monthStr; // Update marker
+
+        if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="40">Нет сотрудников.</td></tr>'; return; }
+        
+        if (shouldRebuild) {
+             tbody.innerHTML = ''; // Clear for full rebuild
+        }
+
+        // Arrays for totals per day
+        const dayCounts = new Array(daysInMonth + 1).fill(0);
+
+        list.forEach((user, idx) => {
+          let tr;
+          if (shouldRebuild) {
+              tr = document.createElement('tr');
+              tbody.appendChild(tr);
+          } else {
+              tr = tbody.children[idx];
+          }
+
+          // --- Row Content Building ---
+          // If rebuilding, create full structure. If updating, only touch cells.
+          // Note: To keep code simple and robust, we will regenerate the innerHTML of the row 
+          // ONLY if it's a rebuild. If it's an update, we'll iterate cells.
+          // Actually, regenerating row innerHTML kills selection too.
+          // So, for smooth update, we must access existing cells.
+          
+          let totalHours = 0;
+          let totalDaysOff = 0;
+          
+          // Meta info (cols 0, 1, 2)
+          if (shouldRebuild) {
+              let roleName = user.role === 'director' ? 'Директор' : (user.role === 'senior_seller' ? 'Ст. продавец' : 'Продавец');
+              // Create 3 meta cells + N day cells + 2 total cells
+              // Total cells = 3 + daysInMonth + 2
+              let html = `<td>${idx + 1}</td>
+                          <td class="sticky-col" style="text-align:left; padding-left:10px;">${user.full_name}</td>
+                          <td>${roleName}</td>`;
+              
+              for (let d = 1; d <= daysInMonth; d++) html += `<td class="day-cell" data-d="${d}"></td>`;
+              html += `<td class="total-hours"></td><td class="total-days"></td>`;
+              tr.innerHTML = html;
+          }
+
+          // Update Day Cells
+          for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const record = this.scheduleData.find(s => s.user_id === user.id && s.date === dateStr);
+            const shiftId = record ? record.shift_id : null;
+            
+            if (shiftId) dayCounts[d]++;
+            else totalDaysOff++;
+
+            // Calculate Hours
+            if (shiftId) {
+                const shiftInfo = this.shiftTypes.find(s => s.id === shiftId);
+                if (shiftInfo) {
+                   if (shiftInfo.work_hours !== undefined && shiftInfo.work_hours !== null) {
+                       totalHours += parseFloat(shiftInfo.work_hours);
+                   } else {
+                       const startH = parseInt(shiftInfo.start_time.split(':')[0]);
+                       const endH = parseInt(shiftInfo.end_time.split(':')[0]);
+                       let duration = endH - startH;
+                       if (duration < 0) duration += 24; 
+                       totalHours += (duration - 1); 
+                   }
+                }
             }
-        };
+
+            // Cell Management
+            // Index offset: 3 (meta) + d - 1
+            const cellIndex = 3 + (d - 1);
+            const td = tr.children[cellIndex];
+            
+            // If cell doesn't exist (edge case), skip
+            if (!td) continue;
+
+            // Check permissions
+            const canEdit = (currentUser.role === 'director') && this.editMode;
+
+            if (canEdit) {
+                // Check if select exists
+                let select = td.querySelector('select');
+                if (!select) {
+                    select = document.createElement('select');
+                    select.dataset.userId = user.id;
+                    select.dataset.date = dateStr;
+                    select.onchange = (e) => this.handleShiftChange(e.target);
+                    td.innerHTML = '';
+                    td.appendChild(select);
+                    
+                    // Populate Options (only once)
+                    const optB = document.createElement('option'); optB.value = ''; optB.text = 'B'; 
+                    select.appendChild(optB);
+
+                    let allowedShifts = this.shiftTypes;
+                    if (user.role === 'director') allowedShifts = this.shiftTypes.filter(st => [1, 2].includes(st.id));
+                    else allowedShifts = this.shiftTypes.filter(st => ![1, 2].includes(st.id));
+
+                    // Add legacy/missing
+                    // We can't easily check shiftId here for *creation* because it might change later.
+                    // But we should ensure all shifts are present.
+                    // For performance, we add all relevant shifts.
+                    // If a shiftId appears that is NOT in allowed, we might need to re-add it dynamically, 
+                    // but that's rare. Let's stick to standard groups.
+
+                    const groups = [
+                        { label: 'Директор (1.0)', ids: [1, 2] },
+                        { label: 'Продавцы (0.75)', ids: [3, 4, 5, 6, 7] },
+                        { label: 'Продавцы (0.5)', ids: [8, 9, 10, 11, 12] }
+                    ];
+
+                    groups.forEach(g => {
+                        const groupShifts = allowedShifts.filter(s => g.ids.includes(s.id));
+                        if (groupShifts.length > 0) {
+                            const optgroup = document.createElement('optgroup');
+                            optgroup.label = g.label;
+                            groupShifts.sort((a,b) => a.id - b.id).forEach(st => {
+                                const opt = document.createElement('option');
+                                opt.value = st.id;
+                                opt.textContent = `${st.id}`;
+                                optgroup.appendChild(opt);
+                            });
+                            select.appendChild(optgroup);
+                        }
+                    });
+                    
+                    // Others
+                    const knownIds = groups.flatMap(g => g.ids);
+                    const others = allowedShifts.filter(s => !knownIds.includes(s.id));
+                    if (others.length > 0) {
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = 'Прочие';
+                        others.sort((a,b) => a.id - b.id).forEach(st => {
+                             const opt = document.createElement('option');
+                             opt.value = st.id;
+                             opt.textContent = `${st.id}`;
+                             optgroup.appendChild(opt);
+                        });
+                        select.appendChild(optgroup);
+                    }
+                }
+                
+                // Update Value only if changed (prevents flicker/focus loss)
+                // Note: shiftId is number or null. select.value is string.
+                const newVal = shiftId ? String(shiftId) : '';
+                if (select.value !== newVal) {
+                    select.value = newVal;
+                    // Also update legacy/missing option if needed? 
+                    // (Skipping complexity for now, assuming standard shifts)
+                }
+
+                // Update Style
+                select.className = `cell-input ${shiftId ? 'cell-work' : 'cell-b'}`;
+                
+                // Tooltip
+                if (shiftId) {
+                   const s = this.shiftTypes.find(x => x.id === shiftId);
+                   if (s) select.title = `Смена ${s.id}: ${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}`;
+                } else {
+                    select.title = '';
+                }
+
+            } else {
+                // Read-only
+                let div = td.querySelector('div.cell-input');
+                if (!div) {
+                    div = document.createElement('div');
+                    td.innerHTML = '';
+                    td.appendChild(div);
+                }
+                
+                div.className = `cell-input ${shiftId ? 'cell-work' : 'cell-b'}`;
+                div.style.cursor = 'default';
+                
+                if (shiftId) {
+                   const s = this.shiftTypes.find(x => x.id === shiftId);
+                   div.textContent = s ? `${s.id}` : shiftId;
+                   if (s) div.title = `${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}`;
+                   div.style.fontSize = '11px';
+                } else {
+                   div.textContent = 'B';
+                   div.title = '';
+                }
+            }
+          } // end for days
+
+          // Update Totals
+          const cellTotalH = tr.children[3 + daysInMonth];
+          const cellTotalD = tr.children[3 + daysInMonth + 1];
+          if (cellTotalH) cellTotalH.innerHTML = `<b>${totalHours}</b>`;
+          if (cellTotalD) cellTotalD.innerHTML = `${totalDaysOff}`;
+        });
+
+        // --- FOOTER (Totals) ---
+        let footHtml = '<tr><td colspan="3" style="text-align:right; font-weight:bold; padding-right:10px;">Итого смен:</td>';
+        for (let d = 1; d <= daysInMonth; d++) {
+            footHtml += `<td><b>${dayCounts[d]}</b></td>`;
+        }
+        footHtml += '<td>-</td><td>-</td></tr>';
+        tfoot.innerHTML = footHtml;
+      }
+
+      async handleShiftChange(select) {
+        const userId = select.dataset.userId;
+        const date = select.dataset.date;
+        const val = select.value; 
+        const shiftId = val ? parseInt(val) : null;
+        const monthStr = date.slice(0, 7);
+        
+        // Optimistic UI update
+        if (select.tagName === 'SELECT') {
+             select.className = `cell-input ${shiftId ? 'cell-work' : 'cell-b'} saving`;
+        }
+
+        const { error } = await supabase.from('schedule').upsert({
+          user_id: userId, date: date, month: monthStr, shift_id: shiftId, is_day_off: !shiftId
+        }, { onConflict: 'user_id, date' });
+
+        if (error) { 
+            alert('Ошибка!'); 
+            if (select.classList) select.classList.add('error'); 
+        }
+        else {
+          if (select.classList) select.classList.remove('saving');
+          // Update cache
+          const idx = this.scheduleData.findIndex(s => s.user_id === userId && s.date === date);
+          if (idx >= 0) {
+             if (shiftId === null) {
+                 this.scheduleData[idx].shift_id = null;
+             } else {
+                 this.scheduleData[idx].shift_id = shiftId;
+             }
+          } else {
+            this.scheduleData.push({ user_id: userId, date, month: monthStr, shift_id: shiftId });
+          }
+        }
+      }
+    }
+
+    // --- MAIN INITIALIZATION ---
+    let autoRefreshInterval = null;
+    let heartbeatInterval = null;
+
+    // Initialize immediately when DOM is ready
+    document.addEventListener('DOMContentLoaded', async () => {
+      console.log('DOM Ready');
+      
+      // 1. Try to restore session
+      try {
+          currentUser = getCurrentUser();
+      } catch (e) {
+          console.error('Session restore error:', e);
+          currentUser = null;
+      }
+
+      // 2. Route to view
+      if (currentUser) {
+        // Verify user exists in DB to prevent stale sessions
+        const isValid = await verifyUser(currentUser.login, currentUser.password);
+        if (isValid) {
+            showAppView();
+        } else {
+            logoutUser();
+        }
+      } else {
+        showLoginView();
+      }
     });
 
-    // Функция отображения приложения после входа
-    async function showApp() {
-        document.getElementById('login-view').style.display = 'none';
-        document.getElementById('app-view').style.display = 'block';
-        document.getElementById('headerName').textContent = currentUser.full_name;
-
-        // Предзагрузка данных
-        await preloadShifts();
-
-        // Запуск календаря
-        new Calendar('calendar-wrapper');
-
-        // Проверка прав директора
-        if (currentUser.role === 'director') {
-            document.getElementById('adminTabBtn').style.display = 'block';
-            renderAdminTable();
+    // Verify user credentials against DB silently
+    async function verifyUser(login, password) {
+        if (!supabase) return true; // Offline fallback
+        try {
+            const { data, error } = await supabase
+                .from('employees')
+                .select('id')
+                .eq('login', login)
+                .eq('password', password)
+                .maybeSingle();
+            return data && !error;
+        } catch (e) {
+            console.warn('Verify user failed:', e);
+            return true; // Assume valid if DB check fails to avoid lockout
         }
     }
 
-    // Рендер таблицы сотрудников
-    async function renderAdminTable() {
-        const tbody = document.querySelector('#usersTable tbody');
-        tbody.innerHTML = '<tr><td colspan="4">Загрузка...</td></tr>';
+    function showLoginView() {
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      
+      const loginView = document.getElementById('login-view');
+      const appView = document.getElementById('app-view');
+      if (loginView) loginView.style.display = 'flex';
+      if (appView) appView.style.display = 'none';
+      
+      initLoginEvents();
+    }
+
+    async function showAppView() {
+      const loginView = document.getElementById('login-view');
+      const appView = document.getElementById('app-view');
+      if (loginView) loginView.style.display = 'none';
+      if (appView) appView.style.display = 'block';
+      
+      await initApp();
+      startAutoRefresh();
+      startHeartbeat();
+    }
+
+    function startAutoRefresh() {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(async () => {
+            if (document.hidden) return; 
+            const activeTab = document.querySelector('.tab.active');
+            if (activeTab && activeTab.dataset.tab === 'schedule') {
+                if (document.getElementById('myScheduleView').style.display !== 'none' && window.calendarApp) {
+                     await window.calendarApp.loadMyShifts();
+                }
+                if (document.getElementById('teamScheduleView').style.display !== 'none' && window.scheduleApp) {
+                     await window.scheduleApp.loadMonthData();
+                }
+            }
+        }, 60000);
+    }
+
+    function startHeartbeat() {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(async () => {
+            if (!supabase) return;
+            await supabase.from('shifts').select('id').limit(1);
+        }, 300000);
+    }
+
+    function initLoginEvents() {
+      console.log('Initializing Login Events...');
+      const toggleBtn = document.getElementById('togglePassword');
+      const passInput = document.getElementById('loginPassword');
+      const loginBtn = document.getElementById('btnLogin');
+      const loginEmail = document.getElementById('loginEmail');
+      const errBox = document.getElementById('loginErrorMsg');
+
+      if (!toggleBtn || !passInput || !loginBtn || !loginEmail || !errBox) {
+        console.error('Login form elements not found. Aborting event binding.');
+        return;
+      }
+
+      // --- Event Handlers ---
+      const handleLogin = async (e) => {
+        e.preventDefault();
+        const login = loginEmail.value.trim();
+        const password = passInput.value.trim();
+
+        if (!login || !password) {
+          errBox.textContent = 'Заполните все поля';
+          return;
+        }
+
+        loginBtn.disabled = true;
+        const originalText = loginBtn.textContent;
+        loginBtn.textContent = 'Вход...';
+        errBox.textContent = 'Проверка...';
+        errBox.style.color = '#888';
+
+        try {
+          await loginUser(login, password);
+          errBox.style.color = '#4caf50';
+          errBox.textContent = 'Успешно!';
+          loginBtn.textContent = 'Успешно!';
+          setTimeout(() => location.reload(), 500);
+        } catch (err) {
+          loginBtn.textContent = originalText;
+          loginBtn.disabled = false;
+          errBox.style.color = '#f44336';
+          errBox.textContent = err.message || 'Ошибка входа';
+        }
+      };
+
+      const handleTogglePassword = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passInput.setAttribute('type', type);
+        toggleBtn.innerHTML = type === 'password'
+          ? '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>'
+          : '<svg viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>';
+        const svg = toggleBtn.querySelector('svg');
+        if (svg) svg.style.fill = 'var(--text-muted)';
+      };
+
+      const onEnter = (e) => {
+        if (e.key === 'Enter') {
+          loginBtn.click();
+        }
+      };
+
+      // --- Attach Events ---
+      // Remove old listeners first to prevent duplicates
+      loginBtn.onclick = null;
+      toggleBtn.onclick = null;
+      loginEmail.removeEventListener('keydown', onEnter);
+      passInput.removeEventListener('keydown', onEnter);
+
+      // Add new listeners
+      loginBtn.onclick = handleLogin;
+      toggleBtn.onclick = handleTogglePassword;
+      loginEmail.addEventListener('keydown', onEnter);
+      passInput.addEventListener('keydown', onEnter);
+    }
+
+    async function initApp() {
+      try {
+        try {
+          await preloadGlobalData();
+        } catch (e) {
+          console.warn('Offline mode or error preloading data:', e);
+        }
+
+        // Run seed check
+        if (typeof seedShifts === 'function') {
+            seedShifts().catch(e => console.log('Seed warning:', e));
+        }
+
+      // Header Info
+      if (currentUser) {
+           document.getElementById('headerLogin').textContent = currentUser.full_name || currentUser.login;
+           const roles = { 'director': 'Директор', 'senior_seller': 'Старший продавец', 'seller': 'Продавец' };
+           document.getElementById('headerRole').textContent = roles[currentUser.role] || currentUser.role;
+          const avatarEl = document.getElementById('headerAvatar');
+          if (avatarEl) {
+            avatarEl.textContent = computeInitials(currentUser.full_name || currentUser.login || 'User');
+          }
+        }
+
+        // Theme
+        if (localStorage.getItem('ax_theme') === 'light') {
+          document.body.classList.add('light-theme');
+        }
         
-        const employees = await getAllEmployees();
-        tbody.innerHTML = '';
-
-        employees.forEach(emp => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${emp.full_name}</td>
-                <td>${emp.login}</td>
-                <td>${roleTranslate(emp.role)}</td>
-                <td>
-                    <button class="btn btn-sm" style="color:red; border-color:red;" onclick="removeUser('${emp.id}')">Удалить</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
+        // Modules
+        window.calendarApp = new Calendar('calendar-wrapper');
+        window.scheduleApp = new ScheduleManager('schedule-manager');
+        await window.scheduleApp.init();
+        
+        // Tabs
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(t => {
+            t.onclick = () => {
+               tabs.forEach(x => x.classList.remove('active'));
+               t.classList.add('active');
+               document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+               document.getElementById(t.dataset.tab).classList.add('active');
+               
+               // Instant refresh on tab switch
+               if (t.dataset.tab === 'schedule') {
+                   if (window.scheduleApp) window.scheduleApp.loadMonthData();
+                   if (window.calendarApp) window.calendarApp.loadMyShifts();
+               }
+            };
         });
-    }
 
-    // Вспомогательная функция перевода ролей
-    function roleTranslate(role) {
-        if (role === 'director') return 'Директор';
-        if (role === 'senior_seller') return 'Ст. Продавец';
-        return 'Продавец';
-    }
+        // Profile Menu Events
+        const pBtn = document.getElementById('profileBtn');
+        const pMenu = document.getElementById('profileMenu');
+        
+        const newPBtn = pBtn.cloneNode(true);
+        pBtn.parentNode.replaceChild(newPBtn, pBtn);
+        
+        newPBtn.onclick = (e) => { e.stopPropagation(); pMenu.style.display = pMenu.style.display === 'block' ? 'none' : 'block'; };
+        document.addEventListener('click', () => pMenu.style.display = 'none');
+        
+        // Logout
+        document.getElementById('logoutBtn').onclick = logoutUser;
+        
+        // Theme Toggle
+        document.getElementById('themeBtn').onclick = (e) => {
+          e.stopPropagation();
+          document.body.classList.toggle('light-theme');
+          localStorage.setItem('ax_theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+        };
 
-    // Глобальная функция удаления (чтобы работала из HTML onclick)
-    window.removeUser = async (id) => {
-        if(confirm("Вы уверены, что хотите удалить этого сотрудника?")) {
-            await deleteEmployee(id);
-            renderAdminTable();
+        // Смена фото отключена
+
+        // Change Password
+        document.getElementById('changePassBtn').onclick = (e) => {
+          e.stopPropagation();
+          document.getElementById('modalChangePass').style.display = 'flex';
+          pMenu.style.display = 'none';
+        };
+
+        document.getElementById('btnSavePass').onclick = async () => {
+          const oldP = document.getElementById('oldPass').value;
+          const newP = document.getElementById('newPass').value;
+          if (!oldP || !newP) return alert('Заполните поля');
+          if (oldP !== currentUser.password) return alert('Старый пароль неверный');
+          const { error } = await supabase.from('employees').update({ password: newP }).eq('id', currentUser.id);
+          if (error) alert('Ошибка: ' + error.message);
+          else {
+            alert('Пароль изменен! Войдите заново.');
+            logoutUser();
+          }
+        };
+
+
+
+        // Role Based Access
+        const isAdmin = ['director', 'senior_seller'].includes(currentUser.role);
+        
+        if (isAdmin) {
+          document.getElementById('adminTab').style.display = 'block';
+          loadUsersTable();
         }
+
+        loadContent();
+        
+        const btnMy = document.getElementById('viewMySched');
+        const btnTeam = document.getElementById('viewTeamSched');
+        btnMy.onclick = () => {
+          document.getElementById('myScheduleView').style.display = 'block';
+          document.getElementById('teamScheduleView').style.display = 'none';
+          btnMy.classList.add('active'); btnTeam.classList.remove('active');
+        };
+        btnTeam.onclick = () => {
+          document.getElementById('myScheduleView').style.display = 'none';
+          document.getElementById('teamScheduleView').style.display = 'block';
+          btnTeam.classList.add('active'); btnMy.classList.remove('active');
+        };
+
+        const btnUpload = document.getElementById('btnUploadMerch');
+        if(btnUpload) {
+          const uploadInput = document.getElementById('uploadMerchInput');
+          if (uploadInput) {
+             btnUpload.onclick = () => uploadInput.click();
+             uploadInput.onchange = handleMerchUpload;
+          }
+        }
+        
+        const btnCreate = document.getElementById('btnCreateUser');
+        if(btnCreate) btnCreate.onclick = createUserHandler;
+
+      // 1S Search
+      try {
+        const tab1S = document.getElementById('tab-1s');
+        if (tab1S) {
+            const searchInput = tab1S.querySelector('.search-input');
+            const list = tab1S.querySelector('.list-group');
+            if (searchInput && list) {
+                const load1S = async (q='') => {
+                   list.innerHTML = '<div class="loader">Поиск...</div>';
+                   let query = supabase.from('manuals').select('*').order('title');
+                   if(q) query = query.ilike('title', `%${q}%`);
+                   const { data } = await query;
+                   list.innerHTML = '';
+                   if(!data || !data.length) { list.innerHTML = '<div>Ничего не найдено</div>'; return; }
+                    data.forEach(item => {
+                       const el = document.createElement('div');
+                       el.style.padding='12px'; el.style.borderBottom='1px solid var(--border-color)'; el.style.cursor='pointer';
+                       el.innerHTML = `<div style="font-weight:600">${item.title}</div><div style="color:var(--text-muted);font-size:12px;margin-top:4px">Нажмите для просмотра</div>`;
+                       el.onclick = () => openManual(item.title, item.content || '');
+                       list.appendChild(el);
+                    });
+                };
+                load1S();
+                window.reloadManuals = () => load1S();
+                searchInput.addEventListener('input', (e) => load1S(e.target.value));
+                const btnAdd = document.getElementById('btnAddManual');
+                if (btnAdd) btnAdd.onclick = () => { document.getElementById('modalAddManual').style.display = 'flex'; };
+                const btnAttach = document.getElementById('btnAttachManualMedia');
+                if (btnAttach) btnAttach.onclick = () => { document.getElementById('uploadManualInput').click(); };
+                const upInput = document.getElementById('uploadManualInput');
+                if (upInput) upInput.onchange = async (e) => {
+                  const file = e.target.files[0]; if (!file) return;
+                  try {
+                    const url = await uploadMedia(file);
+                    const ta = document.getElementById('manualContent');
+                    ta.value = (ta.value || '') + `\n${url}`;
+                  } catch(err) { alert(err.message); } finally { e.target.value=''; }
+                };
+                const btnSaveManual = document.getElementById('btnSaveManual');
+                if (btnSaveManual) btnSaveManual.onclick = async () => {
+                  const title = document.getElementById('manualTitle').value.trim();
+                  const content = document.getElementById('manualContent').value.trim();
+                  if (!title || !content) return alert('Заполните заголовок и текст');
+                  const { error } = await supabase.from('manuals').insert({ title, content, category: '1s' });
+                  if (error) alert(error.message); else { document.getElementById('modalAddManual').style.display='none'; if (window.reloadManuals) window.reloadManuals(); }
+                };
+            }
+        }
+      } catch (err) {
+         console.warn('1S module init error', err);
+      }
+
+    function renderManualContent(text) {
+      const esc = (s) => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+      const lines = String(text || '').split(/\n+/);
+      const blocks = [];
+      lines.forEach(line => {
+        const urls = line.match(/https?:\/\/\S+/g) || [];
+        // Текст без URL
+        const plain = esc(line.replace(/https?:\/\/\S+/g, '').trim());
+        if (plain) blocks.push(`<p>${plain}</p>`);
+        // Вложенные медиа
+        urls.forEach(u => {
+          let pathname = '';
+          try { pathname = new URL(u).pathname; } catch {}
+          const isImg = /\.(png|jpg|jpeg|gif|webp)$/i.test(pathname);
+          const isVid = /\.(mp4|webm|ogg)$/i.test(pathname);
+          if (isImg) {
+            blocks.push(`<img src="${u}" style="max-width:100%;border:1px solid var(--border-color);border-radius:4px;margin:6px 0"/>`);
+          } else if (isVid) {
+            blocks.push(`<video src="${u}" controls style="width:100%;border:1px solid var(--border-color);border-radius:4px;margin:6px 0"></video>`);
+          } else {
+            blocks.push(`<a href="${u}" target="_blank">${esc(u)}</a>`);
+          }
+        });
+      });
+      return blocks.join('');
+    }
+
+    function openManual(title, content) {
+      const m = document.getElementById('modalInfo');
+      if (!m) return;
+      const t = document.getElementById('modalTitle');
+      const b = document.getElementById('modalBody');
+      if (t) t.textContent = title || '';
+      if (b) b.innerHTML = renderManualContent(content || '');
+      m.style.display = 'flex';
+    }
+
+      } catch (err) {
+        console.error('INIT ERROR:', err);
+        alert('Ошибка запуска приложения: ' + err.message);
+      }
+    }
+
+    async function loadContent() {
+      const merchGrid = document.getElementById('merchGrid');
+      if (merchGrid) {
+        const items = await getMerchItems();
+        merchGrid.innerHTML = items.length ? '' : '<p style="text-align:center;width:100%">Нет фото</p>';
+        items.forEach(item => {
+          const el = document.createElement('div');
+          el.className = 'photo-card';
+          const url = item.image_url;
+          const isVideo = url && (url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.ogg'));
+          if (isVideo) {
+            el.innerHTML = `<video src="${url}" controls style="width:100%;height:100%;object-fit:cover"></video><div class="photo-title">${item.title}${item.description ? ' — ' + item.description : ''}</div>`;
+          } else {
+            el.style.backgroundImage = `url('${url}')`;
+            el.innerHTML = `<div class="photo-title">${item.title}${item.description ? ' — ' + item.description : ''}</div>`;
+          }
+          merchGrid.appendChild(el);
+        });
+      }
+    }
+
+    async function handleMerchUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const btn = document.getElementById('btnUploadMerch');
+      const oldText = btn.textContent;
+      btn.textContent = '...'; btn.disabled = true;
+      try {
+        const url = await uploadMedia(file);
+        const title = prompt('Название:', file.type.startsWith('video') ? 'Видео' : 'Фото');
+        const desc = title ? prompt('Описание:', '') : null;
+        if (title) { await createMerchItem(title, url, desc || null); loadContent(); }
+      } catch (err) { alert(err.message); } 
+      finally { btn.textContent = oldText; btn.disabled = false; e.target.value = ''; }
+    }
+
+    async function loadUsersTable() {
+      const tbody = document.querySelector('#usersTable tbody');
+      if (!tbody) return;
+      const users = await getAllEmployees();
+      tbody.innerHTML = '';
+      const canDelete = currentUser.role === 'director';
+      users.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><b>${u.full_name}</b><br><small style="color:#888">${u.login} | ${u.password}</small></td>
+          <td>${u.role}</td>
+          <td>${canDelete ? `<button class="btn btn-sm" onclick="deleteUserHandler('${u.id}')" style="color:red">X</button>` : ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    window.deleteUserHandler = async (id) => {
+      if (currentUser.role !== 'director') return alert('Только директор!');
+      if(!confirm('Удалить?')) return;
+      const { error } = await deleteEmployee(id);
+      if (error) alert(error.message); else loadUsersTable();
     };
 
+    async function createUserHandler() {
+      const login = document.getElementById('newUserEmail').value;
+      const password = document.getElementById('newUserPass').value;
+      const fullName = document.getElementById('newUserName').value;
+      const role = document.getElementById('newUserRole').value;
+      if (!login || !password || !fullName) return alert('Заполните все поля');
+      const { error } = await createEmployee({ login, password, full_name: fullName, role });
+      if (error) alert(error.message); else { alert('Сотрудник создан!'); loadUsersTable(); }
+    }
   </script>
 </body>
 </html>
+    <!-- MODAL: ADD MANUAL -->
+    <div id="modalAddManual" class="modal-overlay">
+      <div class="modal">
+        <span class="close-modal" onclick="closeModal('modalAddManual')">&times;</span>
+        <h3>Новая инструкция</h3>
+        <input type="text" id="manualTitle" placeholder="Заголовок" class="input-field">
+        <textarea id="manualContent" placeholder="Текст и ссылки" class="input-field" style="min-height:160px"></textarea>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn" id="btnAttachManualMedia">Вложить медиа</button>
+          <small style="color:var(--text-muted)">Фото/Видео загрузятся и ссылка добавится в текст</small>
+        </div>
+        <button class="btn btn-primary" id="btnSaveManual">Сохранить</button>
+      </div>
+    </div>
