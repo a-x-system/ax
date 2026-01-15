@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A | X System | Fixed Final</title>
+  <title>A | X System | RLS FIX</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   
@@ -421,21 +421,38 @@
 
     .rls-fix-box {
       background: #1a1a1a;
-      border: 1px solid #ffeb3b;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      font-size: 13px;
+      border: 2px solid #ffeb3b;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      font-size: 14px;
       color: #ffeb3b;
+      box-shadow: 0 0 20px rgba(255, 235, 59, 0.1);
     }
+    .rls-fix-box b { font-size: 18px; display: block; margin-bottom: 10px; }
+    .rls-fix-box ol { margin-left: 20px; margin-bottom: 15px; }
+    .rls-fix-box li { margin-bottom: 5px; }
     .rls-fix-box code {
       display: block;
       background: #000;
-      padding: 10px;
+      padding: 15px;
       margin-top: 10px;
-      border-radius: 4px;
+      border-radius: 6px;
       color: #fff;
       word-break: break-all;
+      font-family: monospace;
+      border: 1px solid #333;
+    }
+    .copy-btn {
+      background: #ffeb3b;
+      color: #000;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
     }
 
     @media (max-width: 768px) {
@@ -538,14 +555,21 @@
     <!-- TAB: ADMIN -->
     <div id="adminTabContent" class="tab-content">
       <div class="rls-fix-box">
-        <b>⚠️ Если загрузка не работает (ошибка RLS):</b>
-        Скопируйте этот код и выполните его в <b>SQL Editor</b> вашего Supabase:
-        <code>
-          ALTER TABLE employees DISABLE ROW LEVEL SECURITY;
-          ALTER TABLE schedule DISABLE ROW LEVEL SECURITY;
-          ALTER TABLE merch DISABLE ROW LEVEL SECURITY;
-          ALTER TABLE manuals DISABLE ROW LEVEL SECURITY;
-        </code>
+        <b>🛑 СРОЧНО: ИСПРАВЛЕНИЕ ОШИБКИ "RLS POLICY"</b>
+        <p>Если вы видите ошибку при сохранении графика или загрузке файлов, сделайте следующее:</p>
+        <ol>
+          <li>Зайдите в ваш проект на <b>supabase.com</b></li>
+          <li>В левом меню выберите <b>SQL Editor</b> (иконка ">_")</li>
+          <li>Нажмите <b>New Query</b></li>
+          <li>Вставьте этот код и нажмите <b>Run</b>:</li>
+        </ol>
+        <code id="rlsSqlCode">ALTER TABLE employees DISABLE ROW LEVEL SECURITY;
+ALTER TABLE schedule DISABLE ROW LEVEL SECURITY;
+ALTER TABLE merch DISABLE ROW LEVEL SECURITY;
+ALTER TABLE manuals DISABLE ROW LEVEL SECURITY;
+ALTER TABLE shifts DISABLE ROW LEVEL SECURITY;</code>
+        <button class="copy-btn" onclick="copyRlsCode()">КОПИРОВАТЬ КОД</button>
+        <p style="margin-top: 15px; font-size: 12px; opacity: 0.8;">После выполнения этого кода ошибка исчезнет навсегда.</p>
       </div>
       <div class="admin-controls">
         <h3>Добавить сотрудника</h3>
@@ -562,6 +586,11 @@
   </div>
 
   <script>
+    function copyRlsCode() {
+      const code = document.getElementById('rlsSqlCode').innerText;
+      navigator.clipboard.writeText(code).then(() => alert('Код скопирован! Вставьте его в SQL Editor в Supabase.'));
+    }
+
     (function() {
       const SUPABASE_URL = 'https://uuhsjusmhmmjceujzoiw.supabase.co';
       const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1aHNqdXNtaG1tamNldWp6b2l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MDU0MTUsImV4cCI6MjA4MTE4MTQxNX0.zaOtLcZGoNV77AiLrbODv3gIamlHWh8QwbBdWeOfJLw';
@@ -803,7 +832,7 @@
     window.handleShiftChange = async function(select) {
       const { userId, date } = select.dataset; const shiftId = select.value ? parseInt(select.value) : null;
       const { error } = await supabase.from('schedule').upsert({ user_id: userId, date: date, month: date.slice(0, 7), shift_id: shiftId, is_day_off: !shiftId }, { onConflict: 'user_id, date' });
-      if (error) alert(error.message);
+      if (error) alert('Ошибка RLS: ' + error.message + '\n\nПожалуйста, выполните SQL-код из вкладки Админ!');
       else {
         select.className = `cell-input ${shiftId ? 'cell-work' : 'cell-b'}`;
         if (window.scheduleApp) {
@@ -821,7 +850,6 @@
     function sanitizeFileName(name) {
       const ext = name.split('.').pop();
       const base = name.split('.').slice(0, -1).join('.');
-      // Заменяем всё кроме латиницы и цифр на подчеркивание
       const cleanBase = base.replace(/[^a-zA-Z0-9]/g, '_');
       return `${cleanBase}.${ext}`;
     }
@@ -946,11 +974,16 @@
 
       document.getElementById('btnUpdateUserPass').onclick = async () => {
         const id = document.getElementById('editUserId').value, pass = document.getElementById('editUserNewPass').value; if (!pass) return alert('Введите пароль');
-        await supabase.from('employees').update({ password: pass }).eq('id', id); alert('Пароль обновлен'); closeModal('modalEditUser'); loadUsersTable();
+        const { error } = await supabase.from('employees').update({ password: pass }).eq('id', id);
+        if (error) alert('Ошибка RLS: ' + error.message);
+        else { alert('Пароль обновлен'); closeModal('modalEditUser'); loadUsersTable(); }
       };
       document.getElementById('btnCreateUser').onclick = async () => {
         const login = document.getElementById('newUserEmail').value.trim(), password = document.getElementById('newUserPass').value.trim(), full_name = document.getElementById('newUserName').value.trim(), role = document.getElementById('newUserRole').value;
-        if (!login || !password || !full_name) return alert('Заполните поля'); await supabase.from('employees').insert({ login, password, full_name, role }); alert('Сотрудник создан'); loadUsersTable();
+        if (!login || !password || !full_name) return alert('Заполните поля');
+        const { error } = await supabase.from('employees').insert({ login, password, full_name, role });
+        if (error) alert('Ошибка RLS: ' + error.message);
+        else { alert('Сотрудник создан'); loadUsersTable(); }
       };
 
       document.getElementById('btnAddMerch').onclick = async () => {
@@ -961,10 +994,11 @@
         btn.disabled = true; btn.textContent = 'Загрузка...';
         try {
           const url = await uploadToSupabase('photos', file);
-          await supabase.from('merch').insert({ title, url });
+          const { error } = await supabase.from('merch').insert({ title, url });
+          if (error) throw error;
           dataCache.merch = null; loadMerch();
           alert('Загружено!');
-        } catch (e) { alert('Ошибка: ' + e.message); }
+        } catch (e) { alert('Ошибка RLS или Storage: ' + e.message); }
         finally { btn.disabled = false; btn.textContent = 'Загрузить'; }
       };
 
@@ -976,10 +1010,11 @@
         btn.disabled = true; btn.textContent = 'Загрузка...';
         try {
           const url = await uploadToSupabase('docs', file);
-          await supabase.from('manuals').insert({ title, url });
+          const { error } = await supabase.from('manuals').insert({ title, url });
+          if (error) throw error;
           dataCache.manuals = null; loadManuals();
           alert('Инструкция загружена!');
-        } catch (e) { alert('Ошибка: ' + e.message); }
+        } catch (e) { alert('Ошибка RLS или Storage: ' + e.message); }
         finally { btn.disabled = false; btn.textContent = 'Загрузить'; }
       };
     }
